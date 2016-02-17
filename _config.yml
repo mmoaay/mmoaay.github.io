@@ -1,5 +1,5 @@
-title:            HMFAYSAL
-description:      "Omega: The Coolest Theme for Jekyll"
+title:            画渣程序猿MM
+description:      "不喜欢画画的程序猿不是好翻译"
 logo:             omikron.png
 disqus_shortname: hmfaysal
 # Assign a default image for your site's header and footer
@@ -77,7 +77,7 @@ kramdown:
   footnote_nr: 1
   entity_output: as_char
   toc_levels: 1..6
-  use_coderay: false
+  enable_coderay: false
 
   coderay:
     coderay_line_numbers: 
