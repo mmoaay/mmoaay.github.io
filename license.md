@@ -1,7 +1,19 @@
+---
+layout: page
+permalink: /license/index.html
+title: LICENSE
+description: "License for Jekyll theme HMFAYSAL OMEGA."
+headline: "The MIT License"
+tags: [Jekyll, theme, license]
+image:
+  feature: 
+---
+
 The MIT License (MIT)
 
-Copyright (c) 2014 Hossain Mohd Faysal <hmfaysal@alum.mit.edu>
-http://hmfaysal.github.io
+Copyright (c) {{ site.time | date: '%Y' }} Hossain Mohd Faysal <[hmfaysal@alum.mit.edu](mailto:hmfaysal@alum.mit.edu)>
+
+[http://alum.mit.edu/www/hmfaysal](http://alum.mit.edu/www/hmfaysal)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
