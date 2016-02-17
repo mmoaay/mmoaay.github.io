@@ -1,9 +1,9 @@
 title:            画渣程序猿MM
 description:      "不喜欢画画的程序猿不是好翻译"
 logo:             omikron.png
-disqus_shortname: hmfaysal
+disqus_shortname: mmoaay
 # Assign a default image for your site's header and footer
-default_bg:       default_bg1.jpg
+default_bg:       default_bg.jpg
 search:           true
 share:            true
 # Read Time is a calculator tp provide post read-time based on word count. Usage is recommended.
@@ -22,20 +22,20 @@ url:
 
 # Owner/author information
 owner:
-  name:           Hossain Mohd Faysal
+  name:           mmoaay
   avatar:         hmfaysal.jpg
-  email:          hmfaysal@alum.mit.edu
+  email:          mmoaay@sina.com
   # Use the coder's toolbox at http://coderstoolbox.net/string/#!encoding=xml&action=encode&charset=us_ascii to encode your description into XML string
-  description:    Hossain Mohammad Faysal is an Electrical Engineer and a Mathematician based in Doha, Qatar. His interests are anything that&#8217;s related to math, from math itself to programming languages to music to physics to engineering to philosophy.
+  description:    程序猿，但是基本不大研究技术，喜欢画画，最近正在画100只猫～
   # Social networking links used in footer. Update and remove as you like.
-  twitter:        hmfaysal
-  facebook:       hmfaysal
-  github:         hmfaysal
-  stackexchange:  https://stackexchange.com/users/3402032/hossain-mohd-faysal
-  linkedin:       https://www.linkedin.com/pub/firstname-lastname/12/345/678
-  instagram:      
-  flickr:         
-  tumblr:         
+  #twitter:        mmoaay
+  #facebook:       mmoaay
+  github:         mmoaay
+  #stackexchange:  https://stackexchange.com/users/3402032/hossain-mohd-faysal
+  #linkedin:       https://www.linkedin.com/pub/firstname-lastname/12/345/678
+  #instagram:      
+  #flickr:         
+  #tumblr:         
   # For Google Authorship https://plus.google.com/authorship
   google_plus:    https://plus.google.com/u/0/102602916593522619858
 
@@ -48,17 +48,17 @@ owner:
 # Links to include in footer navigation
 # For external links add external: true
 links:
-  - title: Home
+  - title: 首页
     url: /
     external: false
     icon: home
-  - title: <i class="icon-book"></i> Documentation
+  - title: <i class="icon-book"></i> 文章
     url: /documentation
-  - title: Categories
+  - title: 分类
     url: /categories
-  - title: Tags
+  - title: 标签
     url: /tags
-  - title: Faysal who?
+  - title: 我是谁?
     url: /hossain-mohd-faysal
 
 # http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
@@ -88,7 +88,7 @@ kramdown:
 
 prose:
   rooturl: '_posts'
-  siteurl: 'http://hmfaysal.github.io/'
+  siteurl: 'http://mmoaay.github.io/'
   relativeLinks: 'http://hmfaysal.github.io/links.jsonp'
   media: 'images'
   metadata:
