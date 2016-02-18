@@ -17,6 +17,8 @@ share: true
 
 *John Torjo*
 
+<!—more—>
+
 ---
 
 #### Boost.Asio C++ 网络编程
@@ -39,6 +41,7 @@ Copyright © 2013 Packt Publishing
 把这本书献给我最好的朋友 Darius。
 
 ---
+
 ## 关于评审员
 
 Béla Tibor Bartha
@@ -57,6 +60,7 @@ Nicolae Ghimbovschi
 我要感谢 John 让我来评审这本书
 
 ---
+
 ## 关于译者
 
 画渣程序猿mmoaay，技术很烂，喜欢平面设计、鼠绘、交友、运动和翻译，但是确作为一只程序猿混迹在IT行业。热爱开源，技术烂就只好做做设计和翻译的工作。
@@ -64,6 +68,7 @@ Nicolae Ghimbovschi
 微博：[http://weibo.com/smmoaay](http://weibo.com/smmoaay)
 
 ---
+
 ## 关于avplayer
 
 [http://avplayer.org](http://avplayer.org) 中国第一技术社区。
@@ -188,6 +193,7 @@ Nicolae Ghimbovschi
 索引
 
 ---
+
 ## 前言
 
 网络编程由来已久，并且是一个极富挑战性的任务。Boost.Asio 对网络编程做了一个极好的抽象，从而保证只需要少量的编程就可以实现一个优雅的客户端/服务端软件。在实现的过程中，它能让你体会到极大的乐趣。而且更为有益的是：Boost.Asio 包含了一些非网络的特性，用 Boost.Asio 写出来的代码紧凑、易读，而且如果按照我在书中所讲的来做，你的代码会无懈可击。
