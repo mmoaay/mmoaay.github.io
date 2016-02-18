@@ -1,9 +1,9 @@
 title:            画渣程序猿MM
 description:      "不喜欢画画的程序猿不是好翻译"
-logo:             omikron.png
+logo:             mmoaay.png
 disqus_shortname: mmoaay
 # Assign a default image for your site's header and footer
-default_bg:       default_bg.jpg
+default_bg:       mmoaay_bg.jpg
 search:           true
 share:            true
 # Read Time is a calculator tp provide post read-time based on word count. Usage is recommended.
@@ -23,21 +23,22 @@ url:
 # Owner/author information
 owner:
   name:           mmoaay
-  avatar:         hmfaysal.jpg
+  avatar:         mmoaay.jpg
   email:          mmoaay@sina.com
   # Use the coder's toolbox at http://coderstoolbox.net/string/#!encoding=xml&action=encode&charset=us_ascii to encode your description into XML string
-  description:    程序猿，但是基本不大研究技术，喜欢画画，最近正在画100只猫～
+  description:    程序猿，但是基本不大研究技术，喜欢画画，最近正在画100只喵～
   # Social networking links used in footer. Update and remove as you like.
-  #twitter:        mmoaay
-  #facebook:       mmoaay
-  github:         mmoaay
-  #stackexchange:  https://stackexchange.com/users/3402032/hossain-mohd-faysal
-  #linkedin:       https://www.linkedin.com/pub/firstname-lastname/12/345/678
-  #instagram:      
-  #flickr:         
-  #tumblr:         
+  # twitter:        mmoaay
+  # facebook:       mmoaay
+  github:           mmoaay
+  # weibo	    mmoaay
+  # stackexchange:  https://stackexchange.com/users/3402032/hossain-mohd-faysal
+  # linkedin:       https://www.linkedin.com/pub/firstname-lastname/12/345/678
+  # instagram:      
+  # flickr:         
+  # tumblr:         
   # For Google Authorship https://plus.google.com/authorship
-  google_plus:    https://plus.google.com/u/0/102602916593522619858
+  # google_plus:    https://plus.google.com/u/0/102602916593522619858
 
 # Analytics and webmaster tools stuff goes here
 # google_analytics:   UA-39365944-7
@@ -62,7 +63,7 @@ links:
     url: /hossain-mohd-faysal
 
 # http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-timezone:    America/New_York
+timezone:    China/Hong_Kong
 future:      true
 highlighter: rouge
 markdown:    kramdown
@@ -89,7 +90,7 @@ kramdown:
 prose:
   rooturl: '_posts'
   siteurl: 'http://mmoaay.github.io/'
-  relativeLinks: 'http://hmfaysal.github.io/links.jsonp'
+  relativeLinks: 'http://mmoaay.github.io/'
   media: 'images'
   metadata:
     _posts:
