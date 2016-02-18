@@ -2,6 +2,8 @@
 layout: post
 title: "前言"
 description: "Boost.Asio C++ Network Programming 翻译"
+excerpt_separator: <!--more-->
+
 category: Boost.Asio
 tags: [Boost.Asio,翻译]
 modified: 2016-02-18
@@ -17,7 +19,7 @@ share: true
 
 *John Torjo*
 
-</p>
+<!--more-->
 
 ---
 
