@@ -20,6 +20,9 @@ fin_color:        "255,255,255"
 # whether working locally or remotely. Start Jekyll with: jekyll serve --baseurl ''
 url:       		   
 
+# excerpt_separator
+excerpt_separator:		<!--more-->
+
 # Owner/author information
 owner:
   name:           mmoaay
@@ -199,6 +202,5 @@ prose:
           label: "Comments"
           value: false
 
-excerpt_separator: <!--more-->
 include: [".htaccess"]
 exclude: ["lib", "config.rb", "Gemfile", "Capfile", "Gemfile.lock", "config", "log", "Rakefile", "Rakefile.rb", "tmp", "less", "*.sublime-project", "*.sublime-workspace", "test", "spec", "Gruntfile.js", "package.json", "node_modules"]
