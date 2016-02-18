@@ -1,30 +1,32 @@
 ---
 layout: post
-title: "前言［Boost.Asio C++ 网络编程翻译］"
-description: "Boost.Asio C++ Network Programming 中文版"
+title: "前言"
+description: "Boost.Asio C++ Network Programming 翻译"
 category: Boost.Asio
 tags: [Boost.Asio,翻译]
 modified: 2016-02-18
 
-imagefeature: tokyo.jpg
+imagefeature: mmoaay_bg.jpg
 comments: true
 share: true
 ---
 
-#实战出精华
+# 实战出精华
+
 *在具体的C++网络编程中提升你的逼格*
 
 *John Torjo*
 
 ---
 
-####Boost.Asio C++ 网络编程
+#### Boost.Asio C++ 网络编程
 
 Copyright © 2013 Packt Publishing
 
 ---
 
-##关于作者
+## 关于作者
+
 做为一名权威的C++专家，**John Torjo** 的编程生涯已经超过了15年，在这15年中，除了偶尔用 `C#` 和 `Java` 写程序，他大部分时间都在研究 `C++`。
 
 他还很喜欢在 C++ Users Journa l和其他杂志上写一些编程相关的文章。
@@ -37,7 +39,8 @@ Copyright © 2013 Packt Publishing
 把这本书献给我最好的朋友 Darius。
 
 ---
-##关于评审员
+## 关于评审员
+
 Béla Tibor Bartha
 
 一个使用多种技术和语言进行开发的专业软件工程师。尽管在过去的4年里，他做的是 `iOS` 和 `OSX` 应用开发，但是 `C++` 陪伴他度过了早期个人游戏项目开发的激情岁月。
@@ -54,18 +57,20 @@ Nicolae Ghimbovschi
 我要感谢 John 让我来评审这本书
 
 ---
-##关于译者
+## 关于译者
+
 画渣程序猿mmoaay，技术很烂，喜欢平面设计、鼠绘、交友、运动和翻译，但是确作为一只程序猿混迹在IT行业。热爱开源，技术烂就只好做做设计和翻译的工作。
 
 微博：[http://weibo.com/smmoaay](http://weibo.com/smmoaay)
 
 ---
-##关于avplayer
+## 关于avplayer
+
 [http://avplayer.org](http://avplayer.org) 中国第一技术社区。
 
 ---
 
-##目录
+## 目录
 ---
 前言
 
@@ -183,7 +188,8 @@ Nicolae Ghimbovschi
 索引
 
 ---
-##前言
+## 前言
+
 网络编程由来已久，并且是一个极富挑战性的任务。Boost.Asio 对网络编程做了一个极好的抽象，从而保证只需要少量的编程就可以实现一个优雅的客户端/服务端软件。在实现的过程中，它能让你体会到极大的乐趣。而且更为有益的是：Boost.Asio 包含了一些非网络的特性，用 Boost.Asio 写出来的代码紧凑、易读，而且如果按照我在书中所讲的来做，你的代码会无懈可击。
 
 这本书涵盖了什么？
@@ -202,17 +208,17 @@ Nicolae Ghimbovschi
 
 *第七章：Boost.Asio 进阶*包含了一些 Boost.Asio 进阶问题的处理。虽然在日常编程中不需要深入研究它们，但是了解它们对你有益无害（Boost.Asio 高级调试，SSL，Windows 特性，POSIX 特性等）。
 
-###读这本书之前你需要准备什么？
+### 读这本书之前你需要准备什么？
 
 如果要编译 Boost.Asio 以及运行本书中的例子，你需要一个现代编译器。例如，Visual Studio 2008 及其以上版本或者 g++ 4.4 及其以上版本
 
-###这本书是为谁写的？
+### 这本书是为谁写的？
 
 这本书对于那些需要进行网络编程却不想深入研究复杂的原始网络 API 的开发者来说是一个福音。所有你需要的只是 Boost.Asio 提供的一套 API 。作为著名 Boost C++ 库的一部分，你只需要额外添加几个 #include 文件即可转换到 Boost.Asio。
 
 在读这本书之前，你需要熟悉 Boost 核心库的一些知识，例如 Boost 智能指针、boost::noncopyable、Boost Functors、Boost Bind、shared_ from_this/enabled_shared_from_this 和 Boost 线程（线程和互斥量）。同时还需要了解 Boost 的 Date/Time。读者还需要知道阻塞的概念以及“非阻塞”操作。
 
-###约定
+### 约定
 
 本书使用不同样式的文字来区分不同种类的信息。这里给出这些样式的例子以及它们的解释。
 
@@ -237,7 +243,7 @@ async_write(stream, buffer [, extra options], handler)
 
 [*？技巧在这样的一个框里面*]
 
-###读者反馈
+### 读者反馈
 
 我们欢迎来自读者的反馈。告诉我们你对这本书的看法——你喜欢哪部分，不喜欢哪部分。读者的反馈对我们非常重要，它能让我们写出对读者更有帮助的书。
 
@@ -245,19 +251,19 @@ async_write(stream, buffer [, extra options], handler)
 
 如果你有一个擅长的专题，想撰写一本书或者为某本书做贡献。请阅读我们在 [www.packtpub.com/authors](www.packtpub.com/authors) 上的作者指引。
 
-###用户支持
+### 用户支持
 
 现在你已经是 Packt 书籍的拥有者，我们将告诉你一些事项，让你购买本书得到的收益最大化。
 
-###下载示例代码
+### 下载示例代码
 
 你可以在 [http://www.packtpub.com](http://www.packtpub.com) 登录你的帐号，然后下载你所购买的书籍的全部示例代码。同时，你也可以通过访问 [http://www.packtpub.com/support](http://www.packtpub.com/support) 进行注册，然后这些示例代码文件将直接发送到你的邮箱。
 
-###纠错
+### 纠错
 
 尽管我们已经尽最大的努力去保证书中内容的准确性，但是错误还是不可避免的。如果你在我们的书籍中发现了错误——也许是文字，也许是代码——如果你能将它们报告给我们，我们将不胜感激。这样的话，你不仅能帮助其他读者，同时也能帮助我们改进这本书的下一个版本。如果你发现任何需要纠正的地方，访问 [http://www.packtpub.com/submit-errata](http://www.packtpub.com/submit-errata)，选择你的书籍，点击**errata submission form**链接，然后输入详细的纠错信息来将错误报告给我们。一经确定，你的提交就会通过，然后这个纠错就会被上传到我们的网站，或者添加到那本书的纠错信息区域的纠错列表中。所有已发现的纠错都可以访问 [http://www.packtpub.com/support](http://www.packtpub.com/support)，然后通过选择书名的方式来查看。
 
-###答疑
+### 答疑
 
 如果你有关于本书任何方面的问题，你可以通过 [questions@packtpub.com](questions@packtpub.com) 联系我们。我们将尽我们最大的努力进行解答
 
