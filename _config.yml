@@ -34,7 +34,7 @@ owner:
   github:           mmoaay
   # weibo	    mmoaay
   # stackexchange:  https://stackexchange.com/users/3402032/hossain-mohd-faysal
-  # linkedin:       https://www.linkedin.com/pub/firstname-lastname/12/345/678
+  linkedin:       http://www.linkedin.com/in/%E5%AE%9C%E4%B8%9C-%E9%83%91-48409887?trk=hp-identity-name
   # instagram:      
   # flickr:         
   # tumblr:         
@@ -91,8 +91,8 @@ kramdown:
 
 prose:
   rooturl: '_posts'
-  siteurl: 'http://mmoaay.github.io/'
-  relativeLinks: 'http://mmoaay.github.io/'
+  siteurl: 'http://mmoaay.photo'
+  relativeLinks: 'http://mmoaay.photo'
   media: 'images'
   metadata:
     _posts:
