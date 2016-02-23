@@ -70,6 +70,7 @@ highlighter: rouge
 markdown:    kramdown
 paginate:    6
 paginate_path: "page:num"
+excerpt_separator: "<!-- more -->"
 
 # https://github.com/mojombo/jekyll/wiki/Permalinks
 permalink:   /:categories/:title
