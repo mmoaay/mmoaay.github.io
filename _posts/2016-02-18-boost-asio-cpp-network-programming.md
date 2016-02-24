@@ -18,7 +18,9 @@ share: true
 
 *John Torjo*
 
-<!-- more -->
+
+\n\n
+
 
 ---
 

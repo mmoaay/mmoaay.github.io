@@ -12,7 +12,7 @@
             jsonFormat      : 'title,category,desc,url,date,shortdate',
             template        : '<a href="{url}" title="{title}">{title}</a>',
             searchResults   : '.results',
-            searchResultsTitle   : '<h4>Search results</h4>',
+            searchResultsTitle   : '<h4>搜索结果</h4>',
             limit           : '10',
             noResults       : '<p>Oh shucks<br/><small>Nothing found :(</small></p>'
         }, options);

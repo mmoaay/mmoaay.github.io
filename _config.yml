@@ -54,23 +54,23 @@ links:
     url: /
     external: false
     icon: home
-  - title: <i class="icon-book"></i> 文章
-    url: /documentation
+#  - title: <i class="icon-book"></i> 文章
+#    url: /documentation
   - title: 分类
     url: /categories
   - title: 标签
     url: /tags
   - title: 我是谁?
-    url: /hossain-mohd-faysal
+    url: /mmoaay
 
 # http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-timezone:    China/Hong_Kong
+timezone:    Asia/Shanghai
 future:      true
 highlighter: rouge
 markdown:    kramdown
 paginate:    6
 paginate_path: "page:num"
-excerpt_separator: "<!-- more -->"
+excerpt_separator: "\n\n"
 
 # https://github.com/mojombo/jekyll/wiki/Permalinks
 permalink:   /:categories/:title
@@ -92,7 +92,7 @@ kramdown:
 prose:
   rooturl: '_posts'
   siteurl: 'http://mmoaay.photo'
-  relativeLinks: 'http://mmoaay.photo'
+  relativeLinks: 'http://mmoaay.photo/links.jsonp'
   media: 'images'
   metadata:
     _posts:
