@@ -14,6 +14,8 @@ share: true
 
 # 实战出精华
 
+<!-- more -->
+
 *在具体的C++网络编程中提升你的逼格*
 
 *John Torjo*
@@ -25,8 +27,6 @@ share: true
 Copyright © 2013 Packt Publishing
 
 ---
-
-<!-- more -->
 
 ## 关于作者
 
