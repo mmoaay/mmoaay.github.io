@@ -55,7 +55,7 @@ Description: Awesome dude, awesome life
                                     </span>
                                     <span>
                                     {% if page.modified %}
-                                        {% if modifiedtime != posttime %} ，修改于 <span class="entry-date date updated">
+                                        {% if modifiedtime != posttime %} ，<code>修改于 <span class="entry-date date updated">
                                                 <time datetime="{{ page.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ page.modified | date: "%Y年%m月%d日" }}
                                                </time>
                                     </code>
