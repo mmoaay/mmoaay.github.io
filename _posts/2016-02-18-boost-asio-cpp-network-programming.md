@@ -18,10 +18,6 @@ share: true
 
 *John Torjo*
 
-
-\n\n
-
-
 ---
 
 #### Boost.Asio C++ 网络编程
@@ -29,6 +25,8 @@ share: true
 Copyright © 2013 Packt Publishing
 
 ---
+
+<!-- more -->
 
 ## 关于作者
 
