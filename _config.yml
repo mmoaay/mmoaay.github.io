@@ -70,7 +70,6 @@ highlighter: rouge
 markdown:    kramdown
 paginate:    6
 paginate_path: "page:num"
-excerpt_separator: "\n\n"
 
 # https://github.com/mojombo/jekyll/wiki/Permalinks
 permalink:   /:categories/:title
@@ -88,6 +87,8 @@ kramdown:
     coderay_tab_width: 4
     coderay_bold_every: 10
     coderay_css: class
+
+excerpt_separator: "<!-- more -->"
 
 prose:
   rooturl: '_posts'
