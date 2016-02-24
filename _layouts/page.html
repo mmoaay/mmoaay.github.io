@@ -38,7 +38,7 @@ Description: Awesome dude, awesome life
                         <h1 class="post-title text-center hyper lighter bordered-bottom">{{ page.title }}</h1>
                         {% endif %}
                         <div class="post-info text-center small">
-                            {% if page.modified %}Last modified on <time datetime="{{ page.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ page.modified | date: "%d %b %Y" }}</time>{% endif %}
+                            {% if page.modified %}Last modified on <time datetime="{{ page.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ page.modified | date: "%Y年%m月%d日" }}</time>{% endif %}
                             {% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
                         </div>
                     </header>

@@ -90,8 +90,8 @@ tags: [mmoaay, draw, IT]
 	                        </li>
 	                    </ul>
 	                    <div class="post-info text-center small">
-	                        Status posted @ <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%d %b %Y" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%d %b %Y" }}</time></code>{% endif %}{% endif %}
-	                        in <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>&nbsp;<span class="post-tags">by {{ site.owner.name }}</span>
+	                        Status posted @ <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%Y年%m月%d日" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%Y年%m月%d日" }}</time></code>{% endif %}{% endif %}
+	                        发表在 <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>&nbsp;<span class="post-tags">by {{ site.owner.name }}</span>
 	                        <div class="post-body bordered-bottom"></div>
 	                    </div>
 	                </header>    
@@ -111,8 +111,8 @@ tags: [mmoaay, draw, IT]
 	                    {% endif %}
 	                    </h2>
 	                    <div class="post-info text-center small">
-	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%d %b %Y" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%d %b %Y" }}</time></code>{% endif %}{% endif %}
-	                        in <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
+	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%Y年%m月%d日" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%Y年%m月%d日" }}</time></code>{% endif %}{% endif %}
+	                        发表在 <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
 	                    </div>
 	                </header>
 	                <div class="post-body bordered-bottom">
@@ -152,8 +152,8 @@ tags: [mmoaay, draw, IT]
 	                    {% endif %}
 	                    </h2>
 	                    <div class="post-info text-center small">
-	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%d %b %Y" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%d %b %Y" }}</time></code>{% endif %}{% endif %}
-	                        in <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
+	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%Y年%m月%d日" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%Y年%m月%d日" }}</time></code>{% endif %}{% endif %}
+	                        发表在 <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
 	                    </div>
 	                </header>
 	                <div class="post-body bordered-bottom">
@@ -187,8 +187,8 @@ tags: [mmoaay, draw, IT]
 	                    {% endif %}
 	                    </h2>
 	                    <div class="post-info text-center small">
-	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%d %b %Y" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%d %b %Y" }}</time></code>{% endif %}{% endif %}
-	                        in <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
+	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%Y年%m月%d日" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%Y年%m月%d日" }}</time></code>{% endif %}{% endif %}
+	                        发表在 <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
 	                    </div>
 	                </header>
 	                <div class="post-body bordered-bottom">
@@ -311,8 +311,8 @@ tags: [mmoaay, draw, IT]
 	                        </li>
 	                    </ul>
 	                    <div class="post-info text-center small">
-	                        Status posted @ <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%d %b %Y" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%d %b %Y" }}</time></code>{% endif %}{% endif %}
-	                        in <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>&nbsp;<span class="post-tags">by {{ site.owner.name }}</span>
+	                        Status posted @ <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%Y年%m月%d日" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%Y年%m月%d日" }}</time></code>{% endif %}{% endif %}
+	                        发表在 <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>&nbsp;<span class="post-tags">by {{ site.owner.name }}</span>
 	                        <div class="post-body bordered-bottom"></div>
 	                    </div>
 	                </header>    
@@ -332,8 +332,8 @@ tags: [mmoaay, draw, IT]
 	                    {% endif %}
 	                    </h2>
 	                    <div class="post-info text-center small">
-	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%d %b %Y" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%d %b %Y" }}</time></code>{% endif %}{% endif %}
-	                        in <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
+	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%Y年%m月%d日" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%Y年%m月%d日" }}</time></code>{% endif %}{% endif %}
+	                        发表在 <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
 	                    </div>
 	                </header>
 	                <div class="post-body bordered-bottom">
@@ -373,8 +373,8 @@ tags: [mmoaay, draw, IT]
 	                    {% endif %}
 	                    </h2>
 	                    <div class="post-info text-center small">
-	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%d %b %Y" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%d %b %Y" }}</time></code>{% endif %}{% endif %}
-	                        in <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
+	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%Y年%m月%d日" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%Y年%m月%d日" }}</time></code>{% endif %}{% endif %}
+	                        发表在 <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
 	                    </div>
 	                </header>
 	                <div class="post-body bordered-bottom">
@@ -408,8 +408,8 @@ tags: [mmoaay, draw, IT]
 	                    {% endif %}
 	                    </h2>
 	                    <div class="post-info text-center small">
-	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%d %b %Y" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%d %b %Y" }}</time></code>{% endif %}{% endif %}
-	                        in <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
+	                        <time datetime="{{ post.date | date_to_xmlschema }}" class="post-time">{{ post.date | date: "%Y年%m月%d日" }}</time>{% if post.modified %}{% if modifiedtime != posttime %} and <code>last modified on <time datetime="{{ post.modified | date: "%Y-%m-%d" }}" itemprop="dateModified">{{ post.modified | date: "%Y年%m月%d日" }}</time></code>{% endif %}{% endif %}
+	                        发表在 <span class="post-tags">{% for tag in post.categories %}<a href="{{ site.url }}/categories/index.html#{{ post.categories | cgi_encode }}" data-toggle="tooltip" title="来自 {{ tag | capitalize }} 分类的其它文章" rel="tag">{{ tag | capitalize }}</a>{% unless forloop.last %}&nbsp;&bull;&nbsp;{% endunless %}{% endfor %}</span>{% if site.readtime %}&nbsp;<span class="post-tags"><i class="icon-time"></i>&nbsp;{% if readtime > 1 and readtime < 1.5 %}已读1分钟{% endif %}{% if readtime > 1.5 %}已读<span class="time">{{ readtime }}</span>分钟{% endif %}{% if readtime < 1 %}阅读不足1分钟{% endif %}</span>{% endif %}
 	                    </div>
 	                </header>
 	                <div class="post-body bordered-bottom">
