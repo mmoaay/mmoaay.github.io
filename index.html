@@ -274,9 +274,9 @@ tags: [mmoaay, draw, IT]
         </header>
         <div class="post-body bordered-bottom">
             {% assign excerptsize = post.excerpt | number_of_words %}
-            {% if excerptsize <= 100 and excerptsize >= 50 %}<p class="lead">{{ post.excerpt | strip_html }}&hellip;</p>
+            {% if excerptsize <= 20 and excerptsize >= 10 %}<p class="lead">{{ post.excerpt | strip_html }}&hellip;</p>
             {% else %}
-            <p>{{ post.content | strip_html | truncatewords:100 }}&hellip;</p>{% endif %}
+            <p>{{ post.content | strip_html | truncatewords:20 }}&hellip;</p>{% endif %}
             <div class="text-center">
                 {% if post.description %}
                 <a href="{{ site.url }}{{ post.url }}" data-toggle="tooltip" title="{{ post.description }}"
