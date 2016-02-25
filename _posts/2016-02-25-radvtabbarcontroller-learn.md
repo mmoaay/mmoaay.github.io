@@ -5,7 +5,6 @@ description: "使用 RDVTabBarController 制作底部凸起的 TabBar 笔记"
 
 category: 笔记
 tags: [笔记, iOS]
-modified: 2016-02-18
 
 imagefeature: mmoaay_bg.jpg
 comments: true
@@ -79,7 +78,7 @@ share: true
 然后是关键部分，对 TabBar 做定制：
 
 ```
-	self.tabBar.frame = CGRectMake(0, 0, SCREEN_SIZE.width, 68);
+    self.tabBar.frame = CGRectMake(0, 0, SCREEN_SIZE.width, 68);
     self.tabBar.backgroundColor = [UIColor clearColor];
     
     // tab 图片
