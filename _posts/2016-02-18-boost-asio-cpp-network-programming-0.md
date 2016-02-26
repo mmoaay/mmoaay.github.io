@@ -22,7 +22,7 @@ share: true
 
 ---
 
-#### Boost.Asio C++ 网络编程
+Boost.Asio C++ 网络编程
 
 Copyright © 2013 Packt Publishing
 
@@ -37,6 +37,7 @@ Copyright © 2013 Packt Publishing
 闲暇的时候，他喜欢玩扑克、开快车。他有很多自由职业，其中一个就把他玩扑克和编程的爱好结合在了一起，如果你想联系他，可以发邮件到[john.code@torjo.com](john.code@torjo.com)。
 
 ---
+
 我要感谢我的朋友 Alexandru Chis, Aurelian Hale, Bela Tibor Bartha, Cristian Fatu, Horia Uifaleanu, Nicolae Ghimbovschi 以及 Ovidiu Deac。感谢他们对本书提出的反馈和建议。同时我也要感谢 Packt 公司各位对我频繁错过截稿日期行为的包容。然后最需要感谢的是 Chris Kohlhoff，Boost.Asio 的作者，是他写出了如此伟大的库。
 
 把这本书献给我最好的朋友 Darius。
@@ -50,14 +51,17 @@ Béla Tibor Bartha
 一个使用多种技术和语言进行开发的专业软件工程师。尽管在过去的4年里，他做的是 `iOS` 和 `OSX` 应用开发，但是 `C++` 陪伴他度过了早期个人游戏项目开发的激情岁月。
 
 ---
+
 我要感谢 John，因为他我才能做这本书的评审
 
 ---
+
 Nicolae Ghimbovschi
 
 一个参加各类 `C++` 项目超过5年的天才个人开发者。他主要参与一些企业通信工程的项目。作为一个狂热的 `Linux` 爱好者，他喜欢利用不同的操作系统、脚本工具和编程语言进行测试和实验。除了编程，他还喜欢骑自行车、瑜伽和冥想。
 
 ---
+
 我要感谢 John 让我来评审这本书
 
 ---
@@ -77,10 +81,13 @@ Nicolae Ghimbovschi
 ---
 
 ## 目录
+
 ---
+
 前言
 
 ---
+
 第一章：Boost.Asio 入门
 
     什么是 Boost.Asio？
@@ -97,6 +104,7 @@ Nicolae Ghimbovschi
     总结
 
 ---
+
 第二章：Boost.Asio 基本原理
 
     网络 API
@@ -121,6 +129,7 @@ Nicolae Ghimbovschi
     总结
 
 ---
+
 第三章：回显服务端/客户端
 
     TCP 回显服务端/客户端
@@ -135,6 +144,7 @@ Nicolae Ghimbovschi
     总结
 
 ---
+
 第四章：客户端和服务端
 
     同步客户端/服务端
@@ -146,6 +156,7 @@ Nicolae Ghimbovschi
     总结
 
 ---
+
 第五章：同步VS异步
 
     同步异步混合编程
@@ -161,6 +172,7 @@ Nicolae Ghimbovschi
     总结
 
 ---
+
 第六章：Boost.Asio-其他特性
 
     std streams 和 std buffer I/O
@@ -171,6 +183,7 @@ Nicolae Ghimbovschi
     总结
 
 ---
+
 第七章：Boost.Asio-进阶
 
     Asio VS Boost.Asio
@@ -191,6 +204,7 @@ Nicolae Ghimbovschi
         总结
 
 ---
+
 索引
 
 ---
