@@ -11,9 +11,6 @@ comments: true
 share: true
 ---
 
-## Boost.Asio基本原理
-
-<!-- more -->
 
 这一章涵盖了使用Boost.Asio时必须知道的一些事情。我们也将深入研究比同步编程更复杂、更有乐趣的异步编程。
 
