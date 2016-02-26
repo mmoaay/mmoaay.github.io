@@ -203,13 +203,13 @@ buf.consume(9);
 下面列出了Boost.Asio中处理streambuf对象的自由函数：
 
 * *read(sock, buf[, completion_function])*：这个方法把内容从socket读取到*streambuf*对象中。*completion*方法是可选的。如果有，它会在每次*read*操作成功之后被调用，然后告诉Boost.Asio这个操作是否完成（如果没有，它继续读取）。它的格式是：*size_t completion(const boost::system::error_code & err, size_t bytes_transfered);*，如果*completion*方法返回0，我们认为*read*操作完成了，如果非0，它表示下一次调用stream的*read_some*方法需要读取的最大的字节数。
-* *read_at(random_stream, offset, buf [, completion_function])*:  这个方法从一个支持随机读取的stream中读取。注意它没有被应用到socket中（因为他们没有随机读取的模型，它们是单向的，一直向前）。
-* *read_until(sock, buf, char | string | regex | match_condition)*: 这个方法一直读到满足一个特性的条件为止。或者是一个char类型的数据被读到，或者是一个字符串被读到，或者是一个目前读到的字符串能匹配的正则表达式，或者*match_condition*方法告诉我们需要结束这个方法。*match_condition*方法的格式是：*pair<iterator,bool> match(iterator begin, iterator end);* ，*iterator*代表 *buffers_ iterator<streambuf::const_buffers_type>*。如果匹配到，你需要返回一个*pair*（*passed_end_of_match*被设置成true）。如果没有匹配到，你需要返回*pair*（begin被设置为false）。
+* *read_at(random_stream, offset, buf [, completion_function])*: 这个方法从一个支持随机读取的stream中读取。注意它没有被应用到socket中（因为他们没有随机读取的模型，它们是单向的，一直向前）。
+* *read_until(sock, buf, char \ string \ regex \ match_condition)*: 这个方法一直读到满足一个特性的条件为止。或者是一个char类型的数据被读到，或者是一个字符串被读到，或者是一个目前读到的字符串能匹配的正则表达式，或者*match_condition*方法告诉我们需要结束这个方法。*match_condition*方法的格式是：*pair<iterator,bool> match(iterator begin, iterator end);* ，*iterator*代表 *buffers_ iterator<streambuf::const_buffers_type>*。如果匹配到，你需要返回一个*pair*（*passed_end_of_match*被设置成true）。如果没有匹配到，你需要返回*pair*（begin被设置为false）。
 * *write(sock, buf [, completion_function])*:  这个方法写入*streambuf*对象所有的内容。*completion*方法是可选的，它的表现和*read()*的*completion*方法类似：当write操作完成时返回0，或者返回一个非0数代表下一次调用stream的*write_some*方法需要写入的最大的字节数。
 * *write_at(random_stream,offset, buf [, completion_function])*: 这个方法用来向一个支持随机存储的stream写入。同样，它没有被应用到socket中。
 * *async_read(sock, buf [, competion_function], handler)*:  这个方法是*read()*的异步实现，handler的格式为：*void handler(const boost::system::error_code, size_t bytes)*。
 * *async_read_at(radom_stream, offset, buf [, completion_function] , handler)*: 这个方法是*read_at()*的异步实现。
-* *async_read_until (sock, buf, char | string | regex | match_ condition, handler)*:  这个方法是*read_until()*的异步实现。
+* *async_read_until (sock, buf, char \ string \ regex \ match_ condition, handler)*:  这个方法是*read_until()*的异步实现。
 * *async_write(sock, buf [, completion_function] , handler)*:  这个方法是*write()*的异步实现。
 * *async_write_at(random_stream,offset, buf [, completion_function] , handler)*:  这个方法是*write_at()*的异步实现。
 
