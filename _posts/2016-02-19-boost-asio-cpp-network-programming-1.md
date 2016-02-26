@@ -814,7 +814,7 @@ int main(int argc, char* argv[]) {
 7. 当*on_write*结束时，我们有一个等待的操作（read）。
 8. 然后一直继续循环下去，直到我们关闭这个应用。
 
-#####run_one(), poll(), poll_one() 方法
+##### run_one(), poll(), poll_one() 方法
 
 我在之前说过异步方法的handler是在调用了*io_service::run*的线程里被调用的。因为在至少90%～95%的时候，这是你唯一要用到的方法，所以我就把它说得简单了。对于调用了*run_one(), poll()*或者*poll_one()*的线程这一点也是适用的。
 
@@ -1050,14 +1050,19 @@ int main(int argc, char* argv[]) {
 ```
 
 *test(service.wrap(dispatched_func_2));*会把*dispatched_ func_2*包装起来创建一个仿函数，然后传递给*test*当作一个参数。当*test()*被调用时，它会分发调用方法1，然后调用*func()*。这时，你会发现调用*func()*和*service.dispatch(dispatched_func_2)*是等价的，因为它们是连续调用的。程序的输出证明了这一点：
+
 ```
 test
 dispatched 1
 dispatched 2
 ```
+
 *io_service::strand *类（用来序列化异步调用）也包含了*poll(), dispatch()*和 *wrap()*等成员函数。它们的作用和*io_service*的*poll(), dispatch()*和*wrap()*是一样的。然而，大多数情况下你只需要把*io_service::strand::wrap()*方法做为*io_service::poll()*或者*io_service::dispatch()*方法的参数即可。
+
 ### 保持活动
+
 假设你需要做下面的操作：
+
 ```
 io_service service;
 ip::tcp::socket sock(service);
@@ -1067,6 +1072,7 @@ read(sock, buffer(buff));
 ```
 
 在这个例子中，*sock*和*buff*的存在时间都必须比*read()*调用的时间要长。也就是说，在调用*read()*返回之前，它们都必须有效。这就是你所期望的；你传给一个方法的所有参数在方法内部都必须有效。当我们采用异步方式时，事情会变得比较复杂。
+
 ```
 io_service service;
 ip::tcp::socket sock(service);
@@ -1079,6 +1085,7 @@ async_read(sock, buffer(buff), on_read);
 在这个例子中，*sock*和*buff*的存在时间都必须比*read()*操作本身时间要长，但是read操作持续的时间我们是不知道的，因为它是异步的。
 
 当使用socket缓冲区的时候，你会有一个*buffer*实例在异步调用时一直存在（使用*boost::shared_array<>*）。在这里，我们可以使用同样的方式，通过创建一个类并在其内部管理socket和它的读写缓冲区。然后，对于所有的异步操作，传递一个包含智能指针的*boost::bind*仿函数给它：
+
 ```
 using namespace boost::asio;
 io_service service;
@@ -1138,6 +1145,7 @@ int main(int argc, char* argv[]) {
     connection::ptr(new connection)->start(ep);
 } 
 ```
+
 在所有异步调用中，我们传递一个*boost::bind*仿函数当作参数。这个仿函数内部包含了一个智能指针，指向*connection*实例。只要有一个异步操作等待时，Boost.Asio就会保存*boost::bind*仿函数的拷贝，这个拷贝保存了指向连接实例的一个智能指针，从而保证*connection*实例保持活动。问题解决！
 
 当然，*connection*类仅仅是一个框架类；你需要根据你的需求对它进行调整（它看起来会和当前服务端例子的情况相当不同）。
