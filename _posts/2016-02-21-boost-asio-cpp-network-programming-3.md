@@ -5,143 +5,292 @@ description: "Boost.Asio C++ Network Programming 翻译"
 
 category: Boost.Asio
 tags: [Boost.Asio,翻译]
-modified: 2016-02-24
 
 imagefeature: mmoaay_bg.jpg
 comments: true
 share: true
 ---
 
-## 回显服务端/客户端
+在这一章节，我们会深入学习怎样使用Boost.Asio建立非凡的客户端和服务端应用。你可以运行并测试它们，而且在理解之后，你可以把它们做为框架来构造自己的应用。
 
-在这一章，我们将会实现一个小的客户端/服务端应用，这可能会是你写过的最简单的客户端/服务端应用。回显应用就是一个把客户端发过来的任何内容回显给其本身，然后关闭连接的的服务端。这个服务端可以处理任何数量的客户端。每个客户端连接之后发送一个消息，服务端接收到完成消息后把它发送回去。在那之后，服务端关闭连接。
+在接下来的例子中：
 
-<!-- more -->
+* 客户端使用一个用户名（无密码）登录到服务端
+* 所有的连接由客户端建立，当客户端请求时服务端回应
+* 所有的请求和回复都以换行符结尾（’\n’）
+* 对于5秒钟没有ping操作的客户端，服务端会自动断开其连接
 
-因此，每个回显客户端连接到服务端，发送一个消息，然后读取服务端返回的结果，确保这是它发送给服务端的消息就结束和服务端的会话。
+客户端可以发送如下请求：
 
-我们首先实现一个同步应用，然后实现一个异步应用，以便你可以很容易对比他们：
+* 获得所有已连接客户端的列表
+* 客户端可以ping，当它ping时，服务端返回*ping ok*或者*ping client_list_chaned*（在接下来的例子中，客户端重新请求已连接的客户端列表）
 
-![](http://d.pcs.baidu.com/thumbnail/3ed527792035c0abc0d8e70405180310?fid=3238002958-250528-552015406596888&time=1420768800&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-jmDoVsCZ6Qw1kecSlrmm13%2BuoY0%3D&rt=sh&expires=2h&r=776548562&sharesign=unknown&size=c710_u500&quality=100)
+为了更有趣一点，我们增加了一些难度：
 
-为了节省空间，下面的代码有一些被裁剪掉了。你可以在附加在这本书的代码中看到全部的代码。
+* 每个客户端登录6个用户连接，比如Johon,James,Lucy,Tracy,Frank和Abby
+* 每个客户端连接随机地ping服务端（随机7秒；这样的话，服务端会时不时关闭一个连接）
 
-### TCP回显服务端/客户端
+### 同步客户端/服务端
 
-对于TCP而言，我们需要一个额外的保证；每一个消息以换行符结束(‘\n’)。编写一个同步回显服务端/客户端非常简单。
+首先，我们会实现同步应用。你会发现它的代码很直接而且易读的。而且因为所有的网络调用都是阻塞的，所以它不需要独立的线程。
 
-我们会展示编码内容，比如同步客户端，同步服务端，异步客户端和异步服务端。
+#### 同步客户端
 
-#### TCP同步客户端
+同步客户端会以你所期望的串行方式运行；连接到服务端，登录服务器，然后执行连接循环，比如休眠一下，发起一个请求，读取服务端返回，然后再休眠一会，然后一直循环下去……
 
-在大多数有价值的例子中，客户端通常比服务端编码要简单（因为服务端需要处理多个客户端请求）。
+![](http://d.pcs.baidu.com/thumbnail/102a243f8953a60d8531f3c68699e517?fid=3238002958-250528-439846994747753&time=1420768800&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-bHTbbqvG4PXZKcDNFdOWL6iVPVY%3D&rt=sh&expires=2h&r=382985944&sharesign=unknown&size=c710_u500&quality=100)
 
-下面的代码展示了不符合这条规则的一个例外：
+因为我们是同步的，所以我们让事情变得简单一点。首先，连接到服务器，然后再循环，如下：
 
 ```
-size_t read_complete(char * buf, const error_code & err, size_t bytes)
-{
-    if ( err) return 0;
-    bool found = std::find(buf, buf + bytes, '\n') < buf + bytes;
-    // 我们一个一个读取直到读到回车，不缓存
-    return found ? 0 : 1;
-}
-void sync_echo(std::string msg) {
-    msg += "\n”;
-    ip::tcp::socket sock(service);
-    sock.connect(ep);
-    sock.write_some(buffer(msg));
-    char buf[1024];
-    int bytes = read(sock, buffer(buf), boost::bind(read_complete,buf,_1,_2));
-    std::string copy(buf, bytes - 1);
-    msg = msg.substr(0, msg.size() - 1);
-    std::cout << "server echoed our " << msg << ": "<< (copy == msg ? "OK" : "FAIL") << std::endl;
-    sock.close();
-}
-int main(int argc, char* argv[]) {
-    char* messages[] = { "John says hi", "so does James", "Lucy just got home", "Boost.Asio is Fun!", 0 };
-    boost::thread_group threads;
-    for ( char ** message = messages; *message; ++message) {
-        threads.create_thread( boost::bind(sync_echo, *message));
-        boost::this_thread::sleep( boost::posix_time::millisec(100));
+ip::tcp::endpoint ep( ip::address::from_string("127.0.0.1"), 8001);
+void run_client(const std::string & client_name) {
+    talk_to_svr client(client_name);
+    try {
+        client.connect(ep);
+        client.loop();
+    } catch(boost::system::system_error & err) {
+        std::cout << "client terminated " << std::endl;
     }
-    threads.join_all();
 }
 ```
 
-核心功能*sync_echo*。它包含了连接到服务端，发送信息然后等待回显的所有逻辑。
-
-你会发现，在读取时，我使用了自由函数*read()*，因为我想要读’\n’之前的所有内容。*sock.read_some()*方法满足不了这个要求，因为它只会读可用的，而不是全部的消息。
-
-*read()*方法的第三个参数是完成处理句柄。当读取到完整消息时，它返回0。否则，它会返回我下一步（直到读取结束）能都到的最大的缓冲区大小。在我们的例子中，返回结果始终是1，因为我永远不想读的消息比我们需要的更多。
-
-在*main()*中，我们创建了几个线程；每个线程负责把消息发送到客户端，然后等待操作结束。如果你运行这个程序，你会看到下面的输出：
+下面的代码片段展示了talk_to_svr类：
 
 ```
-server echoed our John says hi: OK
-server echoed our so does James: OK
-server echoed our Lucy just got home: OK
-server echoed our Boost.Asio is Fun!: OK
+struct talk_to_svr {
+    talk_to_svr(const std::string & username) : sock_(service), started_(true), username_(username) {}
+    void connect(ip::tcp::endpoint ep) {
+        sock_.connect(ep);
+    }
+    void loop() {
+        write("login " + username_ + "\n");
+        read_answer();
+        while ( started_) {
+            write_request();
+            read_answer();
+            boost::this_thread::sleep(millisec(rand() % 7000));
+        }
+    }
+
+    std::string username() const { return username_; }
+    ... 
+private:
+    ip::tcp::socket sock_;
+    enum { max_msg = 1024 };
+    int already_read_;
+    char buff_[max_msg];
+    bool started_;
+    std::string username_;
+}; 
 ```
 
-注意：因为我们是同步的，所以不需要调用*service.run()*。
-
-#### TCP同步服务端
-
-回显同步服务端的编写非常容易，参考如下的代码片段：
+在这个循环中，我们仅仅填充1个比特，做一个ping操作之后就进入睡眠状态，之后再读取服务端的返回。我们的睡眠是随机的（有时候超过5秒），这样服务端就有可能在某个时间点断开我们的连接：
 
 ```
-io_service service;
-size_t read_complete(char * buff, const error_code & err, size_t bytes) {
-    if ( err) return 0;
-    bool found = std::find(buff, buff + bytes, '\n') < buff + bytes;
-    // 我们一个一个读取直到读到回车，不缓存
-    return found ? 0 : 1;
+void write_request() {
+    write("ping\n");
 }
-void handle_connections() {
-    ip::tcp::acceptor acceptor(service, ip::tcp::endpoint(ip::tcp::v4(),8001));
-    char buff[1024];
+void read_answer() {
+    already_read_ = 0;
+    read(sock_, buffer(buff_), boost::bind(&talk_to_svr::read_complete, this, _1, _2));
+    process_msg();
+}
+void process_msg() {
+    std::string msg(buff_, already_read_);
+    if ( msg.find("login ") == 0) on_login();
+    else if ( msg.find("ping") == 0) on_ping(msg);
+    else if ( msg.find("clients ") == 0) on_clients(msg);
+    else std::cerr << "invalid msg " << msg << std::endl;
+} 
+```
+
+对于读取结果，我们使用在之前章节就有说到的*read_complete*来保证我们能读到换行符（’\n’）。这段逻辑在*process_msg()*中，在这里我们读取服务端的返回，然后分发到正确的方法去处理：
+
+```
+void on_login() { do_ask_clients(); }
+void on_ping(const std::string & msg) {
+    std::istringstream in(msg);
+    std::string answer;
+    in >> answer >> answer;
+    if ( answer == "client_list_changed")
+        do_ask_clients();
+}
+void on_clients(const std::string & msg) {
+    std::string clients = msg.substr(8);
+    std::cout << username_ << ", new client list:" << clients;
+}
+void do_ask_clients() {
+    write("ask_clients\n");
+    read_answer();
+}
+void write(const std::string & msg) { sock_.write_some(buffer(msg)); }
+size_t read_complete(const boost::system::error_code & err, size_t bytes) {
+    // ... 和之前一样
+}
+```
+
+在读取服务端对我们ping操作的返回时，如果得到的消息是*client_list_changed*，我们就需要重新请求客户端列表。
+
+#### 同步服务端
+
+同步服务端也是相当简单的。它只需要两个线程，一个负责接收新的客户端连接，另外一个负责处理已经存在的客户端请求。它不能使用单线程，因为等待新的客户端连接是一个阻塞操作，所以我们需要另外一个线程来处理已经存在的客户端请求。
+
+![](http://d.pcs.baidu.com/thumbnail/ceff46cf09767285fd5fa58be5d5beae?fid=3238002958-250528-625961824567867&time=1420768800&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-jZ%2BsgWwaNZblSuxpNAYBN2BuXP8%3D&rt=sh&expires=2h&r=387068104&sharesign=unknown&size=c710_u500&quality=100)
+
+正常来说服务端都比客户端要难实现。一方面，它要管理所有已经连接的客户端。因为我们是同步的，所以我们需要至少两个线程，一个负责接受新的客户端连接（因为accept()是阻塞的）而另一个负责回复已经存在的客户端。
+
+```
+void accept_thread() {
+    ip::tcp::acceptor acceptor(service,ip::tcp::endpoint(ip::tcp::v4(), 8001));
     while ( true) {
-        ip::tcp::socket sock(service);
-        acceptor.accept(sock);
-        int bytes = read(sock, buffer(buff), boost::bind(read_complete,buff,_1,_2));
-        std::string msg(buff, bytes);
-        sock.write_some(buffer(msg));
-        sock.close();
+        client_ptr new_( new talk_to_client);
+        acceptor.accept(new_->sock());
+        boost::recursive_mutex::scoped_lock lk(cs);
+        clients.push_back(new_);
+    }
+}
+
+void handle_clients_thread() {
+    while ( true) {
+        boost::this_thread::sleep( millisec(1));
+        boost::recursive_mutex::scoped_lock lk(cs);
+        for(array::iterator b = clients.begin(), e = clients.end(); b!= e; ++b)
+            (*b)->answer_to_client();
+        // 删除已经超时的客户端
+        clients.erase(std::remove_if(clients.begin(), clients.end(), boost::bind(&talk_to_client::timed_out,_1)), clients.end());
     }
 }
 int main(int argc, char* argv[]) {
-    handle_connections();
-}
+    boost::thread_group threads;
+    threads.create_thread(accept_thread);
+    threads.create_thread(handle_clients_thread);
+    threads.join_all();
+} 
 ```
 
-服务端的逻辑主要在*handle_connections()*。因为是单线程，我们接受一个客户端请求，读取它发送给我们的消息，然后回显，然后等待下一个连接。可以确定，当两个客户端同时连接时，第二个客户端需要等待服务端处理完第一个客户端的请求。
+为了分辨客户端发送过来的请求我们需要保存一个客户端的列表。
 
-还是要注意因为我们是同步的，所以不需要调用*service.run()*。
+每个*talk_to_client*实例都拥有一个socket，socket类是不支持拷贝构造的，所以如果你想要把它们保存在一个*std::vector*对象中，你需要一个指向它的智能指针。这里有两种实现的方式：在*talk_to_client*内部保存一个指向socket的智能指针然后创建一个*talk_to_client*实例的数组，或者让*talk_to_client*实例用变量的方式保存socket，然后创建一个指向*talk_to_client*智能指针的数组。我选择后者，但是你也可以选前面的方式：
 
-#### TCP异步客户端
+```
+typedef boost::shared_ptr<talk_to_client> client_ptr;
+typedef std::vector<client_ptr> array;
+array clients;
+boost::recursive_mutex cs; // 用线程安全的方式访问客户端数组
+```
 
-当我们开始异步时，编码会变得稍微有点复杂。我们会构建在**第二章 保持活动**中展示的*connection*类。
+*talk_to_client*的主要代码如下：
 
-观察这个章节中接下来的代码，你会发现每个异步操作启动了新的异步操作，以保持*service.run()*一直工作。
+```
+struct talk_to_client : boost::enable_shared_from_this<talk_to_client>
+{
+    talk_to_client() { ... }
+    std::string username() const { return username_; }
+    void answer_to_client() {
+        try {
+            read_request();
+            process_request();
+        } catch ( boost::system::system_error&) { stop(); }
+        if ( timed_out())
+            stop();
+    }
+    void set_clients_changed() { clients_changed_ = true; }
+    ip::tcp::socket & sock() { return sock_; }
+    bool timed_out() const {
+        ptime now = microsec_clock::local_time();
+        long long ms = (now - last_ping).total_milliseconds();
+        return ms > 5000 ;
+    }
+    void stop() {
+        boost::system::error_code err; sock_.close(err);
+    }
+    void read_request() {
+        if ( sock_.available())
+            already_read_ += sock_.read_some(buffer(buff_ + already_read_, max_msg - already_read_));
+    }
+... 
+private:
+    // ...  和同步客户端中的一样
+    bool clients_changed_;
+    ptime last_ping;
+}; 
+```
 
-首先，核心功能如下：
+
+上述代码拥有非常好的自释能力。其中最重要的方法是*read_request()*。它只在存在有效数据的情况才读取，这样的话，服务端永远都不会阻塞：
+
+```
+void process_request() {
+    bool found_enter = std::find(buff_, buff_ + already_read_, '\n') < buff_ + already_read_;
+    if ( !found_enter)
+        return; // 消息不完整
+        // 处理消息
+    last_ping = microsec_clock::local_time();
+    size_t pos = std::find(buff_, buff_ + already_read_, '\n') - buff_;
+    std::string msg(buff_, pos);
+    std::copy(buff_ + already_read_, buff_ + max_msg, buff_);
+    already_read_ -= pos + 1;
+    if ( msg.find("login ") == 0) on_login(msg);
+    else if ( msg.find("ping") == 0) on_ping();
+    else if ( msg.find("ask_clients") == 0) on_clients();
+    else std::cerr << "invalid msg " << msg << std::endl;
+}
+void on_login(const std::string & msg) {
+    std::istringstream in(msg);
+    in >> username_ >> username_;
+    write("login ok\n");
+    update_clients_changed();
+} 
+void on_ping() {
+    write(clients_changed_ ? "ping client_list_changed\n" : "ping ok\n");
+    clients_changed_ = false;
+}
+void on_clients() {
+    std::string msg;
+    { boost::recursive_mutex::scoped_lock lk(cs);
+        for( array::const_iterator b = clients.begin(), e = clients.end() ; b != e; ++b)
+            msg += (*b)->username() + " ";
+    }
+    write("clients " + msg + "\n");
+}
+void write(const std::string & msg){sock_.write_some(buffer(msg)); }
+```
+
+观察*process_request()*。当我们读取到足够多有效的数据时，我们需要知道我们是否已经读取到整个消息(如果*found_enter*为真)。这样做的话，我们可以使我们避免一次读多个消息的可能（’\n’之后的消息也被保存到缓冲区中），然后我们解析读取到的整个消息。剩下的代码都是很容易读懂的。
+
+### 异步客户端/服务端
+
+现在，是比较有趣（也比较难）的异步实现！
+
+当查看示意图时，你需要知道Boost.Asio代表由Boost.Asio执行的一个异步调用。例如*do_read()*，Boost.Asio和*on_read()*代表了从*do_read()*到*on_read()*的逻辑流程，但是你永远不知道什么时候轮到*on_read()*被调用，你只是知道你最终会调用它。
+
+#### 异步客户端
+
+到这里事情会变得有点复杂，但是仍然是可控的。当然你也会拥有一个不会阻塞的应用。
+
+![](http://d.pcs.baidu.com/thumbnail/953e9b90f743389e6ea7a425aaeda307?fid=3238002958-250528-223058845569586&time=1420768800&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-56mkJ9mIQ8E81BqrXlmWpBYEqJU%3D&rt=sh&expires=2h&r=552891765&sharesign=unknown&size=c710_u500&quality=100)
+
+下面的代码你应该已经很熟悉：
 
 ```
 #define MEM_FN(x)       boost::bind(&self_type::x, shared_from_this())
-#define MEM_FN1(x,y)    boost::bind(&self_type::x, shared_from_this(),y)
-#define MEM_FN2(x,y,z)  boost::bind(&self_type::x, shared_from_this(),y,z)
-class talk_to_svr : public boost::enable_shared_from_this<talk_to_svr> , boost::noncopyable {
+#define MEM_FN1(x,y)    boost::bind(&self_type::x, shared_from_
+this(),y)
+#define MEM_FN2(x,y,z)  boost::bind(&self_type::x, shared_from_
+this(),y,z)
+class talk_to_svr : public boost::enable_shared_from_this<talk_to_svr>, boost::noncopyable {
     typedef talk_to_svr self_type;
-    talk_to_svr(const std::string & message) : sock_(service), started_(true), message_(message) {}
+    talk_to_svr(const std::string & username) : sock_(service), started_(true), username_(username), timer_
+(service) {}
     void start(ip::tcp::endpoint ep) {
         sock_.async_connect(ep, MEM_FN1(on_connect,_1));
-    }
+} 
 public:
     typedef boost::system::error_code error_code;
     typedef boost::shared_ptr<talk_to_svr> ptr;
-    static ptr start(ip::tcp::endpoint ep, const std::string &message) {
-        ptr new_(new talk_to_svr(message));
+    static ptr start(ip::tcp::endpoint ep, const std::string & username) {
+        ptr new_(new talk_to_svr(username));
         new_->start(ep);
         return new_;
     }
@@ -153,36 +302,69 @@ public:
     bool started() { return started_; }
     ...
 private:
+    size_t read_complete(const boost::system::error_code &err, size_t bytes) {
+        if ( err) return 0;
+        bool found = std::find(read_buffer_, read_buffer_ + bytes, '\n') < read_buffer_ + bytes;
+        return found ? 0 : 1;
+    }
+private:
     ip::tcp::socket sock_;
     enum { max_msg = 1024 };
     char read_buffer_[max_msg];
     char write_buffer_[max_msg];
     bool started_;
-    std::string message_; 
-}; 
+    std::string username_;
+    deadline_timer timer_;
+};
 ```
 
-我们需要一直使用指向*talk_to_svr*的智能指针，这样的话当在*tack_to_svr*的实例上有异步操作时，那个实例是一直活动的。为了避免错误，比如在栈上构建一个*talk_to_svr*对象的实例时，我把构造方法设置成了私有而且不允许拷贝构造（继承自*boost::noncopyable*）。
+你会看到额外还有一个叫*deadline_timer timer_*的方法用来ping服务端；而且ping操作同样是随机的。
 
-我们有了核心方法，比如*start(),stop()*和*started()*，它们所做的事情也正如它们名字表达的一样。如果需要建立连接，调用*talk_to_svr::start(endpoint, message)*即可。我们同时还有一个read缓冲区和一个write缓冲区。（*read_buufer_*和*write_buffer_*）。
-
-*MEM_FN* *是一个方便使用的宏，它们通过*shared_ptr_from_this()*方法强制使用一个指向* *this *的智能指针。
-
-下面的几行代码和之前的解释非常不同：
+下面是类的逻辑：
 
 ```
-//等同于 "sock_.async_connect(ep, MEM_FN1(on_connect,_1));"
-sock_.async_connect(ep,boost::bind(&talk_to_svr::on_connect,shared_ptr_from_this(),_1));
-sock_.async_connect(ep, boost::bind(&talk_to_svr::on_connect,this,_1));
+void on_connect(const error_code & err) {
+       if ( !err)      do_write("login " + username_ + "\n");
+       else            stop();
+   }
+void on_read(const error_code & err, size_t bytes) {
+    if ( err) stop();
+    if ( !started() ) return;
+    // 处理消息
+    std::string msg(read_buffer_, bytes);
+    if ( msg.find("login ") == 0) on_login();
+    else if ( msg.find("ping") == 0) on_ping(msg);
+    else if ( msg.find("clients ") == 0) on_clients(msg);
+}
+void on_login() {
+    do_ask_clients();
+}
+void on_ping(const std::string & msg) {
+    std::istringstream in(msg);
+    std::string answer;
+    in >> answer >> answer;
+    if ( answer == "client_list_changed") do_ask_clients();
+    else postpone_ping();
+}
+void on_clients(const std::string & msg) {
+    std::string clients = msg.substr(8);
+    std::cout << username_ << ", new client list:" << clients ;
+    postpone_ping();
+} 
 ```
 
-在上述例子中，我们正确的创建了*async_connect*的完成处理句柄；在调用完成处理句柄之前它会保留一个指向*talk_to_server*实例的智能指针，从而保证当其发生时*talk_to_server*实例还是保持活动的。
+在*on_read()*中，首先的两行代码是亮点。在第一行，如果出现错误，我们就停止。而第二行，如果我们已经停止了（之前就停止了或者刚好停止），我们就返回。反之如果所有都是OK，我们就对收到的消息进行处理。
 
-在接下来的例子中，我们错误地创建了完成处理句柄，当它被调用时，*talk_to_server*实例很可能已经被释放了。
-
-从socket读取或写入时，你使用如下的代码片段：
+最后是*do_**方法，实现如下：
 
 ```
+void do_ping() { do_write("ping\n"); }
+void postpone_ping() {
+    timer_.expires_from_now(boost::posix_time::millisec(rand() % 7000));
+    timer_.async_wait( MEM_FN(do_ping));
+}
+void do_ask_clients() { do_write("ask_clients\n"); }
+void on_write(const error_code & err, size_t bytes) { do_read(); }
 void do_read() {
     async_read(sock_, buffer(read_buffer_), MEM_FN2(read_complete,_1,_2), MEM_FN2(on_read,_1,_2));
 }
@@ -190,117 +372,25 @@ void do_write(const std::string & msg) {
     if ( !started() ) return;
     std::copy(msg.begin(), msg.end(), write_buffer_);
     sock_.async_write_some( buffer(write_buffer_, msg.size()), MEM_FN2(on_write,_1,_2));
-}
-size_t read_complete(const boost::system::error_code & err, size_t bytes) {
-    // 和TCP客户端中的类似
-}
 ```
 
-*do_read()*方法会保证当*on_read()*被调用的时候，我们从服务端读取一行。*do_write()*方法会先把信息拷贝到缓冲区（考虑到当*async_write*发生时msg可能已经超出范围被释放），然后保证实际的写入操作发生时*on_write()*被调用。
+注意每一个*read*操作都会触发一个ping操作
 
-然后是最重要的方法，这个方法包含了类的主要逻辑：
+* 当*read*操作结束时，*on_read()*被调用
+* *on_read()*调用*on_login()，on_ping()*或者*on_clients()*
+* 每一个方法要么发出一个ping，要么请求客户端列表
+* 如果我们请求客户端列表，当*read*操作接收到它们时，它会发出一个ping操作。
 
-```
-void on_connect(const error_code & err) {
-    if ( !err)      do_write(message_ + "\n");
-    else            stop();
-}
-void on_read(const error_code & err, size_t bytes) {
-    if ( !err) {
-        std::string copy(read_buffer_, bytes - 1);
-        std::cout << "server echoed our " << message_ << ": " << (copy == message_ ? "OK" : "FAIL") << std::endl; 
-    }
-    stop(); 
-}
-void on_write(const error_code & err, size_t bytes) {
-    do_read();
-} 
-```
+#### 异步服务端
 
-当连接成功之后，我们发送消息到服务端,*do_write()*。当write操作结束时，*on_write()*被调用，它初始化了一个*do_read()*方法，当*do_read()*完成时。*on_read()*被调用；这里，我们简单的检查一下返回的信息是否是服务端的回显，然后退出服务。
+这个示意图是相当复杂的；从Boost.Asio出来你可以看到4个箭头指向*on_accept，on_read，on_write*和*on_check_ping*。这也就意味着你永远不知道哪个异步调用是下一个完成的调用，但是你可以确定的是它是这4个操作中的一个。
 
-我们会发送三个消息到服务端让它变得更有趣一点：
+![](http://d.pcs.baidu.com/thumbnail/eb7c5e88701b3738d5f57cb774af20f9?fid=3238002958-250528-454635957192459&time=1420768800&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-BELSnAVGnjDaCwLdOtTjcybqk%2BY%3D&rt=sh&expires=2h&r=476530834&sharesign=unknown&size=c710_u500&quality=100)
+
+现在，我们是异步的了；我们可以继续保持单线程。接受客户端连接是最简单的部分，如下所示：
 
 ```
-int main(int argc, char* argv[]) {
-    ip::tcp::endpoint ep( ip::address::from_string("127.0.0.1"), 8001);
-    char* messages[] = { "John says hi", "so does James", "Lucy got home", 0 };
-    for ( char ** message = messages; *message; ++message) {
-        talk_to_svr::start( ep, *message);
-        boost::this_thread::sleep( boost::posix_time::millisec(100));
-    }
-    service.run();
-}
-```
-
-上述的代码会生成如下的输出：
-
-```
-server echoed our John says hi: OK
-server echoed our so does James: OK
-server echoed our Lucy just got home: OK
-```
-
-#### TCP异步服务端
-
-核心功能和同步服务端的功能类似，如下：
-
-```
-class talk_to_client : public boost::enable_shared_from_this<talk_to_
-   client>, boost::noncopyable {
-    typedef talk_to_client self_type;
-    talk_to_client() : sock_(service), started_(false) {}
-public:
-    typedef boost::system::error_code error_code;
-    typedef boost::shared_ptr<talk_to_client> ptr;
-    void start() {
-        started_ = true;
-        do_read(); 
-    }
-
-    static ptr new_() {
-        ptr new_(new talk_to_client);
-        return new_;
-    }
-    void stop() {
-        if ( !started_) return;
-        started_ = false;
-        sock_.close();
-    }
-    ip::tcp::socket & sock() { return sock_;}
-    ...
-private:
-    ip::tcp::socket sock_;
-    enum { max_msg = 1024 };
-    char read_buffer_[max_msg];
-    char write_buffer_[max_msg];
-    bool started_;
-};
-```
-
-因为我们是非常简单的回显服务，这里不需要*is_started()*方法。对每个客户端，仅仅读取它的消息，回显，然后关闭它。
-
-*do_read()，do_write()*和*read_complete()*方法和TCP同步服务端的完全一致。
-
-主要的逻辑同样是在*on_read()*和*on_write()*方法中：
-
-```
-void on_read(const error_code & err, size_t bytes) {
-    if ( !err) {
-        std::string msg(read_buffer_, bytes);
-        do_write(msg + "\n");
-    }
-    stop(); 
-}
-void on_write(const error_code & err, size_t bytes) {
-    do_read();
-}
-```
-
-对客户端的处理如下：
-
-```
-ip::tcp::acceptor acceptor(service, ip::tcp::endpoint(ip::tcp::v4(),8001));
+ip::tcp::acceptor acceptor(service, ip::tcp::endpoint(ip::tcp::v4(), 8001));
 void handle_accept(talk_to_client::ptr client, const error_code & err)
 {
     client->start();
@@ -309,78 +399,143 @@ void handle_accept(talk_to_client::ptr client, const error_code & err)
 }
 int main(int argc, char* argv[]) {
     talk_to_client::ptr client = talk_to_client::new_();
-    acceptor.async_accept(client->sock(), boost::bind(handle_accept,client,_1));
+    acceptor.async_accept(client->sock(),boost::bind(handle_accept,client,_1));
     service.run();
-} 
-```
-
-每一次客户端连接到服务时，*handle_accept*被调用，它会异步地从客户端读取，然后同样异步地等待一个新的客户端。
-
-#### 代码
-
-你会在这本书相应的代码中得到所有4个应用（TCP回显同步客户端，TCP回显同步服务端，TCP回显异步客户端，TCP回显异步服务端）。当测试时，你可以使用任意客户端/服务端组合（比如，一个异步客户端和一个同步服务端）。
-
-### UDP回显服务端/客户端
-
-因为UDP不能保证所有信息都抵达接收者，我们不能保证“信息以回车结尾”。
-没收到消息，我们只是回显，但是没有socket去关闭（在服务端），因为我们是UDP。
-
-#### UDP同步回显客户端
-
-UDP回显客户端比TCP回显客户端要简单：
-
-```
-ip::udp::endpoint ep( ip::address::from_string("127.0.0.1"), 8001);
-void sync_echo(std::string msg) {
-    ip::udp::socket sock(service, ip::udp::endpoint(ip::udp::v4(), 0));
-    sock.send_to(buffer(msg), ep);
-    char buff[1024];
-    ip::udp::endpoint sender_ep;
-    int bytes = sock.receive_from(buffer(buff), sender_ep);
-    std::string copy(buff, bytes);
-    std::cout << "server echoed our " << msg << ": " << (copy == msg ? "OK" : "FAIL") << std::endl;
-    sock.close();
 }
-int main(int argc, char* argv[]) {
-    char* messages[] = { "John says hi", "so does James", "Lucy got home", 0 };
-    boost::thread_group threads;
-    for ( char ** message = messages; *message; ++message) {
-        threads.create_thread( boost::bind(sync_echo, *message));
-        boost::this_thread::sleep( boost::posix_time::millisec(100));
+```
+
+上述代码会一直异步地等待一个新的客户端连接（每个新的客户端连接会触发另外一个异步等待操作）。
+
+我们需要监控*client list changed*事件（一个新客户端连接或者一个客户端断开连接），然后当事件发生时通知所有的客户端。因此，我们需要保存一个客户端连接的数组，否则除非你不需要在某一时刻知道所有连接的客户端，你才不需要这样一个数组。
+
+```
+class talk_to_client; 
+typedef boost::shared_ptr<talk_to_client>client_ptr;
+typedef std::vector<client_ptr> array;
+array clients;
+```
+
+connection类的框架如下：
+
+```
+class talk_to_client : public boost::enable_shared_from_this<talk_to_client> , boost::noncopyable {
+    talk_to_client() { ... }
+public:
+    typedef boost::system::error_code error_code;
+    typedef boost::shared_ptr<talk_to_client> ptr;
+    void start() {
+        started_ = true;
+        clients.push_back( shared_from_this());
+        last_ping = boost::posix_time::microsec_clock::local_time();
+        do_read(); //首先，我们等待客户端连接
     }
-    threads.join_all();
-}
+    static ptr new_() { ptr new_(new talk_to_client); return new_; }
+    void stop() {
+        if ( !started_) return;
+        started_ = false;
+        sock_.close();
+        ptr self = shared_from_this();
+        array::iterator it = std::find(clients.begin(), clients.end(), self);
+        clients.erase(it);
+        update_clients_changed();
+    }
+    bool started() const { return started_; }
+    ip::tcp::socket & sock() { return sock_;}
+    std::string username() const { return username_; }
+    void set_clients_changed() { clients_changed_ = true; }
+    … 
+private:
+    ip::tcp::socket sock_;
+    enum { max_msg = 1024 };
+    char read_buffer_[max_msg];
+    char write_buffer_[max_msg];
+    bool started_;
+    std::string username_;
+    deadline_timer timer_;
+    boost::posix_time::ptime last_ping;
+    bool clients_changed_;
+};
 ```
 
-所有的逻辑都在*synch_echo()*中；连接到服务端，发送消息，接收服务端的回显，然后关闭连接。
+我会用*talk_to_client*或者*talk_to_server*来调用*connection*类，从而让你更明白我所说的内容。
 
-#### UDP同步回显服务端
+现在你需要用到之前的代码了；它和我们在客户端应用中所用到的是一样的。我们还有另外一个*stop()*方法，这个方法用来从客户端数组中移除一个客户端连接。
 
-UDP回显服务端会是你写过的最简单的服务端：
+服务端持续不断地等待异步的*read*操作：
 
 ```
-io_service service;
-void handle_connections() {
-    char buff[1024];
-    ip::udp::socket sock(service, ip::udp::endpoint(ip::udp::v4(), 8001));
-    while ( true) {
-        ip::udp::endpoint sender_ep;
-        int bytes = sock.receive_from(buffer(buff), sender_ep);
-        std::string msg(buff, bytes);
-        sock.send_to(buffer(msg), sender_ep);
-    } 
+void on_read(const error_code & err, size_t bytes) {
+    if ( err) stop();
+    if ( !started() ) return;
+    std::string msg(read_buffer_, bytes);
+    if ( msg.find("login ") == 0) on_login(msg);
+    else if ( msg.find("ping") == 0) on_ping();
+    else if ( msg.find("ask_clients") == 0) on_clients();
 }
-int main(int argc, char* argv[]) {
-    handle_connections();
+void on_login(const std::string & msg) {
+    std::istringstream in(msg);
+    in >> username_ >> username_;
+    do_write("login ok\n");
+    update_clients_changed();
+}
+void on_ping() {
+    do_write(clients_changed_ ? "ping client_list_changed\n" : "ping ok\n");
+    clients_changed_ = false;
+}
+void on_clients() {
+    std::string msg;
+    for(array::const_iterator b =clients.begin(),e =clients.end(); b != e; ++b)
+        msg += (*b)->username() + " ";
+    do_write("clients " + msg + "\n");
 } 
 ```
 
-它非常简单，而且能很好的自释。
+这段代码是简单易懂的；需要注意的一点是：当一个新客户端登录，我们调用*update_clients_changed()*，这个方法为所有客户端将*clients_changed_*标志为*true*。
 
-我把异步UDP客户端和服务端留给读者当作一个练习。
+服务端每收到一个请求就用相应的方式进行回复，如下所示：
+
+```
+void do_ping() { do_write("ping\n"); }
+void do_ask_clients() { do_write("ask_clients\n"); }
+void on_write(const error_code & err, size_t bytes) { do_read(); }
+void do_read() {
+    async_read(sock_, buffer(read_buffer_), MEM_FN2(read_complete,_1,_2), MEM_FN2(on_read,_1,_2));
+    post_check_ping();
+}
+void do_write(const std::string & msg) {
+    if ( !started() ) return;
+    std::copy(msg.begin(), msg.end(), write_buffer_);
+    sock_.async_write_some( buffer(write_buffer_, msg.size()), MEM_FN2(on_write,_1,_2));
+}
+size_t read_complete(const boost::system::error_code & err, size_t bytes) {
+    // ... 就像之前
+}
+```
+
+在每个*write*操作的末尾，*on_write()*方法被调用，这个方法会触发另外一个异步读操作，这样的话“等待请求－回复请求”这个循环就会一直执行，直到客户端断开连接或者超时。
+
+在每次读操作开始之前，我们异步等待5秒钟来观察客户端是否超时。如果超时，我们关闭它的连接：
+
+```
+void on_check_ping() {
+    ptime now = microsec_clock::local_time();
+    if ( (now - last_ping).total_milliseconds() > 5000)
+        stop();
+    last_ping = boost::posix_time::microsec_clock::local_time();
+}
+void post_check_ping() {
+    timer_.expires_from_now(boost::posix_time::millisec(5000));
+    timer_.async_wait( MEM_FN(on_check_ping));
+}
+```
+
+这就是整个服务端的实现。你可以运行并让它工作起来！
+
+在代码中，我向你们展示了这一章我们学到的东西，为了更容易理解，我把代码稍微精简了下；比如，大部分的控制台输出我都没有展示，尽管在这本书附赠的代码中它们是存在的。我建议你自己运行这些例子，因为从头到尾读一次代码能加强你对本章展示应用的理解。
 
 ### 总结
 
-我们已经写了完整的应用，最终让Boost.Asio得以工作。回显应用是开始学习一个库时非常好的工具。你可以经常学习和运行这个章节所展示的代码，这样你就可以非常容易地记住这个库的基础。
-在下一章，我们会建立更复杂的客户端/服务端应用，我们要确保避免低级错误，比如内存泄漏，死锁等等。
+我们已经学到了怎么写一些基础的客户端/服务端应用。我们已经避免了一些诸如内存泄漏和死锁的低级错误。所有的编码都是框架式的，这样你就可以根据你自己的需求对它们进行扩展。
+
+在接下来的章节中，我们会更加深入地了解使用Boost.Asio进行同步编程和异步编程的不同点，同时你也会学会如何嵌入你自己的异步操作。
 
