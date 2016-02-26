@@ -16,7 +16,6 @@ share: true
 * 如果调试失败，你需要看Boost.Asio能帮到你什么
 * 如果你需要处理SSL，看Boost.Asio能帮你多少
 * 如果你指定一个操作系统，看Boost.Asio为你准备了哪些额外的特性
-* 
 
 ### Asio VS Boost.Asio
 
