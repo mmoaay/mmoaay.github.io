@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "使用 RDVTabBarController 制作底部凸起的 TabBar 笔记"
+title: "制作底部凸起的 TabBar 笔记"
 description: "使用 RDVTabBarController 制作底部凸起的 TabBar 笔记"
 
 category: 笔记
