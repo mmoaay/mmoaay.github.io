@@ -1,3 +1,16 @@
+---
+layout: post
+title: "造轮子 | 如何设计一个面向协议的 iOS 网络请求库"
+description: "造轮子 | 如何设计一个面向协议的 iOS 网络请求库"
+
+category: 笔记
+tags: [笔记, iOS]
+
+imagefeature: mmoaay_bg.jpg
+comments: true
+share: true
+---
+
 最近开源了一个面向协议设计的网络请求库 [`MBNetwork`](https://github.com/mmoaay/MBNetwork)，基于 `Alamofire` 和 `ObjectMapper` 实现，目的是简化业务层的网络请求操作。
 
 # 需要干些啥
