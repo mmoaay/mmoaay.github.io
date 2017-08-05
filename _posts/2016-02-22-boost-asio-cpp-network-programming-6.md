@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Boost.Asio－进阶话题"
+title: "Boost.Asio－其他特性"
 description: "Boost.Asio C++ Network Programming 翻译"
 
 category: Boost.Asio
@@ -11,339 +11,418 @@ comments: true
 share: true
 ---
 
-这一章对Boost.Asio的一些进阶话题进行了阐述。在日常编程中深入研究这些问题是不太可能的，但是知道这些肯定是有好处的：
+这章我们讲了解一些Boost.Asio不那么为人所知的特性。标准的stream和streambuf对象有时候会更难用一些，但正如你所见，它们也有它们的益处。最后，你会看到姗姗来迟的Boost.Asio协程的入口，它可以让你的异步代码变得非常易读。这是非常惊人的一个特性。
 
-* 如果调试失败，你需要看Boost.Asio能帮到你什么
-* 如果你需要处理SSL，看Boost.Asio能帮你多少
-* 如果你指定一个操作系统，看Boost.Asio为你准备了哪些额外的特性
+### 标准stream和标准I/O buffer
 
-### Asio VS Boost.Asio
+读这一章节之前你需要对STL stream和STL streambuf对象有所了解。
 
-Boost.Asio的作者也保持了Asio。你可以用Asio的方式来思考，因为它在两种情况中都有：Asio（非Boost的）和Boost.Asio。作者声明过更新都会先在非Boost中出现，然后过段时间后，再加入到Boost的发布中。
+Boost.Asio在处理I/O操作时支持两种类型的buffer：
 
-不同点被归纳到下面几条：
+* *boost::asio::buffer()*：这种buffer关联着一个Boost.Asio的操作（我们使用的buffer被传递给一个Boost.Asio的操作）
+* *boost::asio::streambuf*：这个buffer继承自*std::streambuf*，在网络编程中可以和STL stream一起使用
 
-* Asio被定义在*asio::*的命名空间中，而Boost.Asio被定义在*boost::asio::*中
-* Asio的主头文件是*asio.hpp*，而Boost.Asio的头文件是*boost/asio.hpp*
-* Asio也有一个启动线程的类（和*boost::thread*一样）
-* Asio提供它自己的错误码类(*asio::error_code*代替*boost::system::error_code*，然后*asio:system_error*代替*boost::systrem::system_error*)
-
-你可以在这里查阅更多Asio的信息：[http://think_async.com](http://think_async.com)
-
-你需要自己决定你选择的版本，我选择Boost.Asio。下面是一些当你做选择时需要考虑的问题：
-
-* Asio的新版本比Boost.Asio的新版本发布要早（因为Boost的版本更新比较少）
-* Asio只有头文件（而Boost.Asio的部分依赖于其他Boost库，这些库可能需要编译）
-* Asio和Boost.Asio都是非常成熟的，所以除非你非常需要一些Asio新发布的特性，Boost.Asio是非常保险的选择，而且你也可以同时拥有其他Boost库的资源
-
-尽管我不推荐这样，你可以在一个应用中同时使用Asio和Boost.Asio。在允许的情况下这是很自然的，比如你使用Asio，然后一些第三方库是Boost.Asio，反之亦然。 
-
-### 调试
-
-调试同步应用往往比调试异步应用要简单。对于同步应用，如果阻塞了，你会跳转进入调试，然后你会知道你在哪（同步意味着有序的）。然而如果是异步，事件不是有序发生的，所以在调试中是非常难知道到底发生了什么的。
-
-为了避免这种情况，首先，你需要深入了解协程。如果实现正确，基本上你一点也不会碰到异步调试的问题。
-
-以防万一，在做异步编码的时候，Boost.Asio还是对你伸出了援手；Boost.Asio允许“句柄追踪”，当*BOOST_ASIO_ENABLE_HANDLER_TRACKING*被定义时，Boost.Asio会写很多辅助的输出到标准错误流，纪录时间，异步操作，以及操作和完成处理handler的关系。
-
-#### 句柄追踪信息
-
-虽然输出信息不是那么容易理解，但是有总比没有好。Boost.Asio的输出是*@asio|<timestamp>|<action>|<description>* 
-。
-第一个标签永远都是*@asio*，因为其他代码也会输出到标准错误流（和*std::error*相当），所以你可以非常简单的用这个标签过滤从Boost.Asio打印出来的信息。*timestamp*实例从1970年1月1号到现在的秒数和毫秒数。*action*实例可以是下面任何一种：
-
-* *\>n*：这个在我们进入handler *n*的时候使用。*description*实例包含了我们发送给handler的参数。
-* *<n*：这个在我们退出handler *n*的时候使用。
-* *!n*：这个当我们因为异常退出handler *n*的时候使用。
-* *-n*：这个当handler *n*在没有调用的情况就退出的时候使用；可能是因为io_service实例被删除地太快了（在*n*有机会被调用之前）
-* *n*m*：这个当handler *n*创建了一个新的有完成处理hanlder * *m*的异步操作时被调用。*description*实例展示的就是异步操作开始的地方。当你看到*>m*（开始）和*<m*（结束）时*completion*句柄被调用了。
-* *n*：就像在*description*中展示的一样，这个当handler *n*做了一个操作的时候使用（可能是*close*或者*cancel*操作）。你一般可以忽略这些信息。
-
-当*n*是0时，操作是在所有（异步）handler之外被执行的；你经常会在第一个操作时看到这个，或者当你使用的信号量其中一个被触发时。
-
-你需要特别注意类型为*!n*和*-n*的信息，这些信息大部分都意味着你的代码有错误。在第一种情形中，异步方法没有抛出异常，所以，异常一定是你自己造成的；你不能让异常跑出你的*completion*句柄。第二种情形中，你可能太早就销毁了*io_service*实例，在所有完成处理句被调用之前。
-
-#### 一个例子
-
-为了向你展示一个带辅助输出信息的例子，我们修改了在**第六章 Boost.Asio其他特性** 中使用的例子。你所需要做的仅仅是在包含*boost/asio.hpp*之前添加一个*#define*
+纵观全书，之前的例子中最常见的例子如下：
 
 ```
-#define BOOST_ASIO_ENABLE_HANDLER_TRACKING
-#include <boost/asio.hpp>
+size_t read_complete(boost::system::error_code, size_t bytes){ ... }
+char buff[1024];
+read(sock, buffer(buff), read_complete);
+write(sock, buffer("echo\n"));
+```
+
+通常来说使用这个就能满足你的需要，如果你想要更复杂，你可以使用*streambuf*来实现。
+
+这个就是你可以用*streambuf*对象做的最简单也是最坏的事情：
+
+```
+streambuf buf;
+read(sock, buf);
+```
+
+这个会一直读到*streambuf*对象满了，然后因为*streambuf*对象可以通过自己重新开辟空间从而获取更多的空间，它基本会读到连接被关闭。
+
+你可以使用*read_until*一直读到一个特定的字符串：
+
+```
+streambuf buf;
+read_until(sock, buf, "\n");
+```
+
+这个例子会一直读到一个“\n”为止，把它添加到*buffer*的末尾，然后退出*read*方法。
+
+向一个*streambuf*对象写一些东西，你需要做一些类似下面的事情：
+
+```
+streambuf buf;
+std::ostream out(&buf);
+out << "echo" << std::endl;
+write(sock, buf);
+```
+
+这是非常直观的；你在构造函数中传递你的*streambuf*对象来构建一个STL stream，将其写入到你想要发送的消息中，然后使用*write*来发送buffer的内容。
+
+### Boost.Asio 和 STL stream
+
+Boost.Asio在集成STL stream和网络方面做了很棒的工作。也就是说，如果你已经在使用STL扩展，你肯定就已经拥有了大量重载了操作符<<和>>的类。从socket读或者写入它们就好像在公园漫步一样简单。
+
+假设你有下面的代码片段：
+
+```
+struct person {
+    std::string first_name, last_name;
+    int age;
+};
+std::ostream& operator<<(std::ostream & out, const person & p) {
+    return out << p.first_name << " " << p.last_name << " " << p.age;
+}
+std::istream& operator>>(std::istream & in, person & p) {
+    return in >> p.first_name >> p.last_name >> p.age;
+} 
+```
+
+通过网络发送这个*person*就像下面的代码片段这么简单：
+
+```
+streambuf buf;
+std::ostream out(&buf);
+person p;
+// … 初始化p
+out << p << std::endl;
+write(sock, buf);
+```
+
+另外一个部分也可以非常简单的读取：
+
+```
+read_until(sock, buf, "\n");
+std::istream in(&buf);
+person p;
+in >> p;
+```
+
+使用*streambuf*对象（当然，也包括它用来写入的*std::ostream*和用来读取的*std::istream*）时最棒的部分就是你最终的编码会很自然：
+* 当通过网络写入一些要发送的东西时，很有可能你会有多个片段的数据。所以，你需要把数据添加到一个buffer里面。如果那个数据不是一个字符串，你需要先把它转换成一个字符串。当使用<<操作符时这些操作默认都已经做了。
+* 同样，在另外一个部分，当读取一个消息时，你需要解析它，也就是说，读取到一个片段的数据时，如果这个数据不是字符串，你需要将它转换为字符串。当你使用>>操作符读取一些东西时这些也是默认就做了的。
+
+最后要给出的是一个非常著名，非常酷的诀窍，使用下面的代码片段把*streambuf*的内容输出到console中
+
+```
+streambuf buf;
 ...
+std::cout << &buf << std::endl; //把所有内容输出到console中
 ```
 
-同时，我们也在用户登录和接收到第一个客户端列表时将信息输出到控制台中。输出会如下所示：
+同样的，使用下面的代码片段来把它的内容转换为一个*string*
 
 ```
-@asio|1355603116.602867|0*1|socket@008D4EF8.async_connect
-@asio|1355603116.604867|>1|ec=system:0
-@asio|1355603116.604867|1*2|socket@008D4EF8.async_send
-@asio|1355603116.604867|<1|
-@asio|1355603116.604867|>2|ec=system:0,bytes_transferred=11
-@asio|1355603116.604867|2*3|socket@008D4EF8.async_receive
-@asio|1355603116.604867|<2|
-@asio|1355603116.605867|>3|ec=system:0,bytes_transferred=9
-@asio|1355603116.605867|3*4|io_service@008D4BC8.post
-@asio|1355603116.605867|<3|
-@asio|1355603116.605867|>4|
-John logged in
-@asio|1355603116.606867|4*5|io_service@008D4BC8.post
-@asio|1355603116.606867|<4|
-@asio|1355603116.606867|>5|
-@asio|1355603116.606867|5*6|socket@008D4EF8.async_send
-@asio|1355603116.606867|<5|
-@asio|1355603116.606867|>6|ec=system:0,bytes_transferred=12
-@asio|1355603116.606867|6*7|socket@008D4EF8.async_receive
-@asio|1355603116.606867|<6|
-@asio|1355603116.606867|>7|ec=system:0,bytes_transferred=14
-@asio|1355603116.606867|7*8|io_service@008D4BC8.post
-@asio|1355603116.607867|<7|
-@asio|1355603116.607867|>8|
-John, new client list: John
+std::string to_string(streambuf &buf) {
+    std::ostringstream out;
+    out << &buf;
+    return out.str();
+} 
 ```
 
-让我们一行一行分析：
+### streambuf类
 
-* 我们进入*async_connect*，它创建了句柄1（在这个例子中，所有的句柄都是*talk_to_svr::step*）
-* 句柄1被调用（当成功连接到服务端时）
-* 句柄1调用*async_send*，这创建了句柄2（这里，我们发送登录信息到服务端）
-* 句柄1退出
-* 句柄2被调用，11个字节被发送出去（login John）
-* 句柄2调用*async_receive*，这创建了句柄3（我们等待服务端返回登录的结果）
-* 句柄2退出
-* 句柄3被调用，我们收到了9个字节（login ok）
-* 句柄3调用*on_answer_from_server*（这创建了句柄4）
-* 句柄3退出
-* 句柄4被调用，这会输出John logged in
-* 句柄4调用了另外一个step（句柄5），这会写入*ask_clients*
-* 句柄4退出
-* 句柄5进入
-* 句柄5，*async_send_ask_clients*，创建句柄6
-* 句柄5退出
-* 句柄6调用*async_receive*，这创建了句柄7（我们等待服务端发送给我们已存在的客户端列表）
-* 句柄6退出
-* 句柄7被调用，我们接受到了客户端列表
-* 句柄7调用*on_answer_from_server*（这创建了句柄8）
-* 句柄7退出
-* 句柄8进去，然后输出客户端列表（*on_clients*）
+我之前说过，*streambuf*继承自*std::streambuf*。就像*std::streambuf*本身，它不能拷贝构造。
 
-这需要时间去理解，但是一旦你理解了，你就可以分辨出有问题的输出，从而找出需要被修复的那段代码。
+另外，它有一些额外的方法，如下：
+* *streambuf([max_size,][allocator])*：这个方法构造了一个*streambuf*对象。你可以选择指定一个最大的buffer大小和一个分配器，分配器用来在需要的时候分配/释放内存。
+* *prepare(n)*：这个方法返回一个子buffer，用来容纳连续的n个字符。它可以用来读取或者写入。方法返回的结果可以在任何Boost.Asio处理*read/write*的自由函数中使用，而不仅仅是那些用来处理*streambuf*对象的方法。
+* *data()*：这个方法以连续的字符串形式返回整个buffer然后用来写入。方法返回的结果可以在任何Boost.Asio处理写入的自由函数中使用，而不仅仅是那些用来处理streambuf对象的方法。
+* *comsume(n)*：在这个方法中，数据从输入队列中被移除（从read操作）
+* *commit(n)*：在这个方法中，数据从输出队列中被移除(从write操作)然后加入到输入队列中（为read操作准备）。
+* *size()*：这个方法以字节为单位返回整个streambuf对象的大小。
+* *max_size()*：这个方法返回最多能保存的字节数。
 
-#### 句柄追踪信息输出到文件
-
-默认情况下，句柄的追踪信息被输出到标准错误流（相当于*std::cerr*）。而把输出重定向到其他地方的可能性是非常高的。对于控制台应用，输出和错误输出都被默认输出到相同的地方，也就是控制台。但是对于一个windows（非命令行）应用来说，默认的错误流是null。
-
-你可以通过命令行把错误输出重定向，比如：
+除了最后的两个方法，其他的方法不是那么容易理解。首先，大部分时间你会把*streambuf*以参数的方式传递给*read/write*自由函数，就像下面的代码片段展示的一样：
 
 ```
-some_application 2>err.txt
+read_until(sock, buf, "\n"); // 读取到buf中
+write(sock, buf); // 从buf写入
 ```
 
-或者，如果你不是很懒，你可以代码实现，就像下面的代码片段
+如果你想之前的代码片段展示的一样把整个buffer都传递到一个自由函数中，方法会保证把buffer的输入输出指针指向的位置进行增加。也就是说，如果有数据需要读，你就能读到它。比如：
 
 ```
-//  对于Windows
-HANDLE h = CreateFile("err.txt", GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
-FILE_ATTRIBUTE_NORMAL , 0);
-SetStdHandle(STD_ERROR_HANDLE, h);
-// 对于Unix
-int err_file = open("err.txt", O_WRONLY);
-dup2(err_file, STDERR_FILENO);
+read_until(sock, buf, '\n');
+std::cout << &buf << std::endl;
 ```
 
-### SSL
-
-Boost.Asio提供了一些支持基本SSL的类。它在幕后使用的其实是OpenSSL，所以，如果你想使用SSL，首先从[www.openssl.org](www.openssl.org)下载OpenSSL然后构建它。你需要注意，构建OpenSSL通常来说不是一个简单的任务，尤其是你没有一个常用的编译器，比如Visual Studio。
-
-假如你成功构建了OpenSSL，Boost.Asio就会有一些围绕它的封装类：
-
-* *ssl::stream*：它代替*ip:<protocol>::socket*来告诉你用什么
-* *ssl::context*：这是给第一次握手用的上下文
-* *ssl::rfc2818_verification*：使用这个类可以根据RFC 2818协议非常简单地通过证书认证一个主机名
-
-首先，你创建和初始化SSL上下文，然后使用这个上下文打开一个连接到指定远程主机的socket，然后做SSL握手。握手一结束，你就可以使用Boost.Asio的*read*/write**等自由函数。
-
-下面是一个连接到Yahoo！的HTTPS客户端例子：
+上述代码会把你刚从socket写入的东西输出。而下面的代码不会输出任何东西：
 
 ```
-#include <boost/asio.hpp>
-#include <boost/asio/ssl.hpp>
-using namespace boost::asio;
-io_service service;
-int main(int argc, char* argv[]) {
-    typedef ssl::stream<ip::tcp::socket> ssl_socket;
-    ssl::context ctx(ssl::context::sslv23);
-    ctx.set_default_verify_paths();
-    // 打开一个到指定主机的SSL socket
-    io_service service;
-    ssl_socket sock(service, ctx);
-    ip::tcp::resolver resolver(service);
-    std::string host = "www.yahoo.com";
-    ip::tcp::resolver::query query(host, "https");
-    connect(sock.lowest_layer(), resolver.resolve(query));
-    // SSL 握手
-    sock.set_verify_mode(ssl::verify_none);
-    sock.set_verify_callback(ssl::rfc2818_verification(host));
-    sock.handshake(ssl_socket::client);
-    std::string req = "GET /index.html HTTP/1.0\r\nHost: " + host + "\r\nAccept: */*\r\nConnection: close\r\n\r\n";
-    write(sock, buffer(req.c_str(), req.length()));
-    char buff[512];
-    boost::system::error_code ec;
-    while ( !ec) {
-        int bytes = read(sock, buffer(buff), ec);
-        std::cout << std::string(buff, bytes);
+read(sock, buf.prepare(16), transfer_exactly(16) );
+std::cout << &buf << std::endl;
+```
+
+字节被读取了，但是输入指针没有移动，你需要自己移动它，就像下面的代码片段所展示的：
+
+```
+read(sock, buf.prepare(16), transfer_exactly(16) );
+buf.commit(16);
+std::cout << &buf << std::endl;
+```
+
+同样的，假设你需要从*streambuf*对象中写入，如果你使用了*write*自由函数，则需要像下面一样：
+
+```
+streambuf buf;
+std::ostream out(&buf);
+out << "hi there" << std::endl;
+write(sock, buf);
+```
+
+下面的代码会把hi there发送三次：
+
+```
+streambuf buf;
+std::ostream out(&buf);
+out << "hi there" << std::endl;
+for ( int i = 0; i < 3; ++i)
+    write(sock, buf.data());
+```
+
+发生的原因是因为buffer从来没有被消耗过，因为数据还在。如果你想消耗它，使用下面的代码片段：
+
+```
+streambuf buf;
+std::ostream out(&buf);
+out << "hi there" << std::endl;
+write(sock, buf.data());
+buf.consume(9);
+```
+
+总的来说，你最好选择一次处理整个*streambuf*实例。如果需要调整则使用上述的方法。
+
+尽管你可以在读和写操作时使用同一个*streambuf*，你仍然建议你分开使用两个，一个读另外一个写，它会让事情变的简单，清晰，同时你也会减少很多导致bug的可能。
+
+### 处理streambuf对象的自由函数
+
+下面列出了Boost.Asio中处理streambuf对象的自由函数：
+
+* *read(sock, buf[, completion_function])*：这个方法把内容从socket读取到*streambuf*对象中。*completion*方法是可选的。如果有，它会在每次*read*操作成功之后被调用，然后告诉Boost.Asio这个操作是否完成（如果没有，它继续读取）。它的格式是：*size_t completion(const boost::system::error_code & err, size_t bytes_transfered);*，如果*completion*方法返回0，我们认为*read*操作完成了，如果非0，它表示下一次调用stream的*read_some*方法需要读取的最大的字节数。
+* *read_at(random_stream, offset, buf [, completion_function])*: 这个方法从一个支持随机读取的stream中读取。注意它没有被应用到socket中（因为他们没有随机读取的模型，它们是单向的，一直向前）。
+* *read_until(sock, buf, char \ string \ regex \ match_condition)*: 这个方法一直读到满足一个特性的条件为止。或者是一个char类型的数据被读到，或者是一个字符串被读到，或者是一个目前读到的字符串能匹配的正则表达式，或者*match_condition*方法告诉我们需要结束这个方法。*match_condition*方法的格式是：*pair<iterator,bool> match(iterator begin, iterator end);* ，*iterator*代表 *buffers_ iterator<streambuf::const_buffers_type>*。如果匹配到，你需要返回一个*pair*（*passed_end_of_match*被设置成true）。如果没有匹配到，你需要返回*pair*（begin被设置为false）。
+* *write(sock, buf [, completion_function])*:  这个方法写入*streambuf*对象所有的内容。*completion*方法是可选的，它的表现和*read()*的*completion*方法类似：当write操作完成时返回0，或者返回一个非0数代表下一次调用stream的*write_some*方法需要写入的最大的字节数。
+* *write_at(random_stream,offset, buf [, completion_function])*: 这个方法用来向一个支持随机存储的stream写入。同样，它没有被应用到socket中。
+* *async_read(sock, buf [, competion_function], handler)*:  这个方法是*read()*的异步实现，handler的格式为：*void handler(const boost::system::error_code, size_t bytes)*。
+* *async_read_at(radom_stream, offset, buf [, completion_function] , handler)*: 这个方法是*read_at()*的异步实现。
+* *async_read_until (sock, buf, char \ string \ regex \ match_ condition, handler)*:  这个方法是*read_until()*的异步实现。
+* *async_write(sock, buf [, completion_function] , handler)*:  这个方法是*write()*的异步实现。
+* *async_write_at(random_stream,offset, buf [, completion_function] , handler)*:  这个方法是*write_at()*的异步实现。
+
+我们假设你需要一直读取直到读到一个元音字母：
+
+```
+streambuf buf;
+bool is_vowel(char c) {
+    return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
+}
+size_t read_complete(boost::system::error_code, size_t bytes) {
+    const char * begin = buffer_cast<const char*>( buf.data());
+    if ( bytes == 0) return 1;
+    while ( bytes > 0)
+        if ( is_vowel(*begin++)) return 0;
+        else --bytes;
+    return 1;
+}
+...
+read(sock, buf, read_complete);
+```
+
+这里需要注意的事情是对*read_complete()*中buffer的访问，也就是*buffer_cast<>*和*buf.data*。
+
+如果你使用正则，上面的例子会更简单：
+
+```
+read_until(sock, buf, boost::regex("^[aeiou]+") ); 
+```
+
+或者我们修改例子来让*match_condition*方法工作起来：
+
+```
+streambuf buf;
+bool is_vowel(char c) {
+    return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
+}
+typedef buffers_iterator<streambuf::const_buffers_type> iterator;
+std::pair<iterator,bool> match_vowel(iterator b, iterator e) {
+    while ( b != e)
+        if ( is_vowel(*b++)) return std::make_pair(b, true);
+    return std::make_pair(e, false);
+}
+...
+size_t bytes = read_until(sock, buf, match_vowel);
+```
+
+当使用*read_until*时会有个难点：你需要记住你已经读取的字节数，因为下层的buffer可能多读取了一些字节（不像使用*read()*时）。比如：
+
+```
+std::cout << &buf << std::endl;
+```
+
+上述代码输出的字节可能比*read_until*读取到的多。
+
+### 协程
+
+Boost.Asio的作者在2009-2010年间实现了非常酷的一个部分，协程，它能让你更简单地设计你的异步应用。
+
+它们可以让你同时享受同步和异步两个世界中最好的部分，也就是：异步编程但是很简单就能遵循流程控制，就好像应用是按流程实现的。
+
+![](http://d.pcs.baidu.com/thumbnail/75bba5ebc1781380baf5c8ecf40b7f6e?fid=3238002958-250528-571276571493867&time=1420772400&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-xqB0SvR9wei6sSPHYGH86JOKGw4%3D&rt=sh&expires=2h&r=263323555&sharesign=unknown&size=c710_u500&quality=100)
+
+正常的流程已经在情形1种展示了，如果使用协程，你会尽可能的接近情形2。
+
+简单来说，就是协程允许在方法中的指定位置开辟一个入口来暂停和恢复运行。
+
+如果要使用协程，你需要在*boost/libs/asio/example/http/server4*目录下的两个头文件：*yield.hpp*和*coroutine.hpp*。在这里，Boost.Asio定义了两个虚拟的关键词（宏）和一个类：
+
+* *coroutine*：这个类在实现协程时被你的连接类继承或者使用。
+* *reenter(entry)*：这个是协程的主体。参数*entry*是一个指向*coroutine*实例的指针，它被当作一个代码块在整个方法中使用。
+* *yield code*：它把一个声明当作协程的一部分来运行。当下一次进入方法时，操作会在这段代码之后执行。
+
+为了更好的理解，我们来看一个例子。我们会重新实现 **第四章 异步客户端** 中的应用，这是一个可以登录，ping，然后能告诉你其他已登录客户端的简单客户端应用。
+核心代码和下面的代码片段类似：
+
+```
+class talk_to_svr : public boost::enable_shared_from_this<talk_to_svr>, public coroutine, boost::noncopyable {
+    ...
+    void step(const error_code & err = error_code(), size_t bytes = 0) {
+        reenter(this) 
+        { 
+            for (;;) {
+                yield async_write(sock_, write_buffer_, MEM_FN2(step,_1,_2) );
+                yield async_read_until( sock_, read_buffer_,"\n", MEM_FN2(step,_1,_2));
+                yield service.post( MEM_FN(on_answer_from_server));
+            }
+        } 
+    }
+}; 
+```
+
+首先改变的事就是：我们只有一个叫做*step()*的方法，而没有大量类似*connect()，on_connect()，on_read()，do_read()，on_write()，do_write()*等等的成员方法。
+
+方法的主体在*reenter(this) { for (;;) { }}* 内。你可以把*reenter(this)*当作我们上次运行的代码，所以这次我们执行的是下一次的代码。
+
+在*reenter*代码块中，你会发现几个*yield*声明。你第一次进入方法时，*async_write*方法被执行，第二次*async_read_until*方法被执行，第三次*service.post*方法被执行，然后第四次*async_write*方法被执行，然后一直循环下去。
+
+你需要一直记住*for(;;){}*实例。参考下面的代码片段：
+
+```
+void step(const error_code & err = error_code(), size_t bytes = 0) {
+    reenter(this) {
+        yield async_write(sock_, write_buffer_, MEM_FN2(step,_1,_2) );
+        yield async_read_until( sock_, read_buffer_, "\n",MEM_FN2(step,_1,_2));
+        yield service.post(MEM_FN(on_answer_from_server));
     }
 } 
 ```
 
-第一行能很好的自释。当你连接到远程主机，你使用*sock.lowest_layer()*，也就是说，你使用底层的socket（因为*ssl::stream*仅仅是一个封装）。接下来三行进行了握手。握手一结束，你使用Booat.Asio的*write()*方法做了一个HTTP请求，然后读取（*read()*）所有接收到的字节。
-
-当实现SSL服务端的时候，事情会变的有点复杂。Boost.Asio有一个SSL服务端的例子，你可以在*boost/libs/asio/example/ssl/server.cpp*中找到。
-
-### Boost.Asio的Windows特性
-
-接下来的特性只赋予Windows操作系统
-
-#### 流处理
-
-Boost.Asio允许你在一个Windows句柄上创建封装，这样你就可以使用大部分的自由函数，比如*read()，read_until()，write()，async_read()，async_read_until()*和*async_write()*。下面告诉你如何从一个文件读取一行：
+如果我们第三次使用上述的代码片段，我们会进入方法然后执行*service.post*。当我们第四次进入方法时，我们跳过*service.post*，不执行任何东西。当执行第五次时仍然不执行任何东西，然后一直这样下去：
 
 ```
-HANDLE file = ::CreateFile("readme.txt", GENERIC_READ, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, 0);
-windows::stream_handle h(service, file);
-streambuf buf;
-int bytes = read_until(h, buf, '\n');
-std::istream in(&buf);
-std::string line;
-std::getline(in, line);
-std::cout << line << std::endl;
-```
-
-*stream_handle*类只有在I/O完成处理端口正在被使用的情况下才有效（这是默认情况）。如果情况满足，*BOOST_ASIO_HAS_WINDOWS_STREAM_HANDLE*就被定义
-
-#### 随机访问句柄
-
-Boost.Asio允许对一个指向普通文件的句柄进行随机读取和写入。同样，你为这个句柄创建一个封装，然后使用自由函数，比如*read_at()，write_at()，async_read_at()，async_write_at()*。要从1000的地方读取50个字节，你需要使用下面的代码片段：
-
-```
-HANDLE file = ::CreateFile("readme.txt", GENERIC_READ, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, 0);
-windows::random_access_handle h(service, file);
-char buf[50];
-int bytes = read_at(h, 1000, buffer( buf));
-std::string msg(buf, bytes);
-std::cout << msg << std::endl;
-```
-
-对于Boost.Asio，随机访问句柄只提供随机访问，你不能把它们当作流句柄使用。也就是说，自由函数，比如：*read()，read_until()，write()*以及他们的相对的异步方法都不能在一个随机访问的句柄上使用。
-
-*random_access_handle*类只有在I/O完成处理端口在使用中才有效（这是默认情况）。如果情况满足，*BOOST_ASIO_HAS_WINDOWS_RANDOM_ACCESS_HANDLE*就被定义
-
-#### 对象句柄
-
-你可以通过Windows句柄等待内核对象，比如修改通知，控制台输入，事件，内存资源通知，进程，信号量，线程或者可等待的计时器。或者简单来说，所有可以调用*WaitForSingleObject*的东西。你可以在它们上面创建一个*object_handle*封装，然后在上面使用*wait()*或者*async_wait()*：
-
-```
-void on_wait_complete(boost::system::error_code err) {}
-...
-HANDLE evt = ::CreateEvent(0, true, true, 0);
-windows::object_handle h(service, evt);
-// 同步等待
-h.wait();
-// 异步等待
-h.async_wait(on_wait_complete);
-```
-
-### Boost.Asio POSIX特性
-
-这些特性只在Unix操作系统上可用
-
-#### 本地socket
-
-Boost.Asio提供了对本地socket的基本支持（也就是著名的Unix 域socket）。
-
-本地socket是一种只能被运行在主机上的应用访问的socket。你可以使用本地socket来实现简单的进程间通讯，连接两端的方式是把一个当作客户端而另一个当作服务端。对于本地socket，端点是一个文件，比如*/tmp/whatever*。很酷的一件事情是你可以给指定的文件赋予权限，从而禁止机器上指定的用户在文件上创建socket。
-
-你可以用客户端socket的方式连接，如下面的代码片段：
-
-```
-local::stream_protocol::endpoint ep("/tmp/my_cool_app");
-local::stream_protocol::socket sock(service);
-sock.connect(ep);
-```
-
-你可以创建一个服务端socket，如下面的代码片段：
-
-```
-::unlink("/tmp/my_cool_app");
-local::stream_protocol::endpoint ep("/tmp/my_cool_app");
-local::stream_protocol::acceptor acceptor(service, ep);
-local::stream_protocol::socket sock(service);
-acceptor.accept(sock);
-```
-
-只要socket被成功创建，你就可以像用普通socket一样使用它；它和其他socket类有相同的成员方法，而且你也可以在使用了socket的自由函数中使用。
-
-注意本地socket只有在目标操作系统支持它们的时候才可用，也就是*BOOST_ASIO_HAS_LOCAL_SOCKETS*（如果被定义）
-
-#### 连接本地socket
-
-最终，你可以连接两个socket，或者是无连接的（数据报），或者是基于连接的（流）：
-
-```
-// 基于连接
-local::stream_protocol::socket s1(service);
-local::stream_protocol::socket s2(service);
-local::connect_pair(s1, s2);
-// 数据报
-local::datagram_protocol::socket s1(service);
-local::datagram_protocol::socket s2(service);
-local::connect_pair(s1, s2);
-```
-
-在内部，*connect_pair*使用的是不那么著名的*POSIX socketpair()*方法。基本上它所作的事情就是在没有复杂socket创建过程的情况下连接两个socket；而且只需要一行代码就可以完成。这在过去是实现线程通信的一种简单方式。而在现代编程中，你可以避免它，然后你会发现在处理使用了socket的遗留代码时它非常有用。
-
-#### POSIX文件描述符
-
-Boost.Asio允许在一些POSIX文件描述符，比如管道，标准I/O和其他设备（但是不是在普通文件上）上做一些同步和异步的操作。
-一旦你为这样一个POSIX文件描述符创建了一个*stream_descriptor*实例，你就可以使用一些Boost.Asio提供的自由函数。比如*read()，read_until()，write()，async_read()，async_read_until()*和*async_write()*。
-
-下面告诉你如何从stdin读取一行然后输出到stdout：
-
-```
-size_t read_up_to_enter(error_code err, size_t bytes) { ... }
-posix::stream_descriptor in(service, ::dup(STDIN_FILENO));
-posix::stream_descriptor out(service, ::dup(STDOUT_FILENO));
-char buff[512];
-int bytes = read(in, buffer(buff), read_up_to_enter);
-write(out, buffer(buff, bytes));
-```
-
-*stream_descriptor*类只在目标操作系统支持的情况下有效，也就是*BOOST_ASIO_HAS_POSIX_STREAM_DESCRIPTOR*（如果定义了）
-
-#### Fork
-
-Boost.Asio支持在程序中使用*fork()*系统调用。你需要告诉*io_service*实例*fork()*方法什么时候会发生以及什么时候发生了。参考下面的代码片段：
-
-```
-service.notify_fork(io_service::fork_prepare);
-if (fork() == 0) {
-    // 子进程
-    service.notify_fork(io_service::fork_child);
-    ...
-} else {
-    // 父进程
-    service.notify_fork(io_service::fork_parent);
+class talk_to_svr : public boost::enable_shared_from_this<talk_to_svr>, public coroutine, boost::noncopyable {
+    talk_to_svr(const std::string & username) : ... {}
+    void start(ip::tcp::endpoint ep) {
+        sock_.async_connect(ep, MEM_FN2(step,_1,0) );
+    }
+    static ptr start(ip::tcp::endpoint ep, const std::string &username) {
+        ptr new_(new talk_to_svr(username));
+        new_->start(ep); 
+        return new_;
+    }
+    void step(const error_code & err = error_code(), size_t bytes = 0)
+    {
+        reenter(this) { 
+            for (;;) {
+                if ( !started_) {
+                    started_ = true;
+                    std::ostream out(&write_buf_);
+                    out << "login " << username_ << "\n";
+                }
+                yield async_write(sock_, write_buf_,MEM_FN2(step,_1,_2));
+                yield async_read_until( sock_,read_buf_,"\n",MEM_FN2(step,_1,_2));
+                yield service.post(MEM_FN(on_answer_from_server));
+            }
+        }
+    }
+    void on_answer_from_server() {
+        std::istream in(&read_buf_);
+        std::string word;
+        in >> word;
+        if ( word == "login") on_login();
+        else if ( word == "ping") on_ping();
+        else if ( word == "clients") on_clients();
+        read_buf_.consume( read_buf_.size());
+        if (write_buf_.size() > 0) service.post(MEM_FN2(step,error_code(),0));
+    }
     ... 
+private:
+    ip::tcp::socket sock_;
+    streambuf read_buf_, write_buf_;
+    bool started_;
+    std::string username_;
+    deadline_timer timer_;
+};
+```
+
+当我们启动连接时，*start()*被调用，然后它会异步地连接到服务端。当连接完成时，我们第一次进入*step()*。也就是我们发送我们登录信息的时候。
+
+在那之后，我们调用*async_write*，然后调用*async_read_until*，再处理消息（*on_answer_from_server*）。
+
+我们在*on_answer_from_server*处理接收到的消息；我们读取第一个字符，然后把它分发到相应的方法。剩下的消息（如果还有一些消息没读完）我们都忽略掉：
+
+```
+class talk_to_svr : ... {
+    ...
+    void on_login() { do_ask_clients(); }
+    void on_ping() {
+        std::istream in(&read_buf_);
+        std::string answer; in >> answer;
+        if ( answer == "client_list_changed")
+            do_ask_clients();
+        else postpone_ping();
+    }
+    void on_clients() {
+        std::ostringstream clients; clients << &read_buf_;
+        std::cout << username_ << ", new client list:" << clients.str();
+        postpone_ping();
+    }
+    void do_ping() {
+        std::ostream out(&write_buf_); out << "ping\n";
+        service.post( MEM_FN2(step,error_code(),0));
+    } 
+    void postpone_ping() {
+        timer_.expires_from_now(boost::posix_time::millisec(rand() % 7000));
+        timer_.async_wait( MEM_FN(do_ping));
+    }
+    void do_ask_clients() {
+        std::ostream out(&write_buf_);
+        out << "ask_clients\n";
+    }
+}; 
+```
+
+完整的例子还会更复杂一点，因为我们需要随机地ping服务端。实现这个功能我们需要在第一次请求客户端列表完成之后做一个ping操作。然后，在每个从服务端返回的ping操作的结果中，我们做另外一个ping操作。
+
+使用下面的代码片段来执行整个过程：
+
+```
+int main(int argc, char* argv[]) {
+    ip::tcp::endpoint ep(ip::address::from_string("127.0.0.1"),8001);
+    talk_to_svr::start(ep, "John");
+    service.run();
 } 
 ```
 
-这意味着会在不同的线程使用即将被调用的*service*。尽管Boost.Asio允许这样，我还是强烈推荐你使用多线程，因为使用*boost::thread*简直就是小菜一碟。
+使用协程，我们节约了15行代码，而且代码也变的更加易读。
+
+在这里我们仅仅接触了协程的一点皮毛。如果你想要了解更多，请登录作者的个人主页：[http://blog.think-async.com/2010_03_01_archive.html](http://blog.think-async.com/2010_03_01_archive.html)。
 
 ### 总结
 
-为简单明了的代码而奋斗。学习和使用协程会最小化你需要做的调试工作，但仅仅是在代码中有潜在bug的情况下，Boost.Asio才会伸出援手，这一点在关于调试的章节中就已经讲过。
+我们已经了解了如何使用Boost.Asio玩转STL stream和streambuf对象。我们也了解了如何使用协程来让我们的代码更加简洁和易读。
 
-如果你需要使用SSL，Boost.Asio是支持基本的SSL编码的
-
-最终，如果已经知道应用是针对专门的操作系统的，你可以享用Boost.Asio为那个特定的操作系统准备的特性。
+下面就是重头戏了，比如Asio VS Boost.Asio，高级调试，SSL和平台相关特性。

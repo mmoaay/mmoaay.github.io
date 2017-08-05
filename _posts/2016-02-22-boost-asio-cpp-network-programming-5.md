@@ -1,428 +1,690 @@
 ---
 layout: post
-title: "Boost.Asio－其他特性"
+title: "同步 VS 异步"
 description: "Boost.Asio C++ Network Programming 翻译"
 
 category: Boost.Asio
 tags: [Boost.Asio,翻译]
+modified: 2016-02-24
 
 imagefeature: mmoaay_bg.jpg
 comments: true
 share: true
 ---
 
-这章我们讲了解一些Boost.Asio不那么为人所知的特性。标准的stream和streambuf对象有时候会更难用一些，但正如你所见，它们也有它们的益处。最后，你会看到姗姗来迟的Boost.Asio协程的入口，它可以让你的异步代码变得非常易读。这是非常惊人的一个特性。
+Boost.Asio的作者做了一个很惊艳的工作：它可以让你在同步和异步中自由选择，从而更好地适应你的应用。
 
-### 标准stream和标准I/O buffer
+在之前的章节中，我们已经学习了各种类型应用的框架，比如同步客户端，同步服务端，异步客户端，异步服务端。它们中的每一个都可以作为你应用的基础。如果要更加深入地学习各种类型应用的细节，请继续。
 
-读这一章节之前你需要对STL stream和STL streambuf对象有所了解。
+### 混合同步异步编程
 
-Boost.Asio在处理I/O操作时支持两种类型的buffer：
+Boost.Asio库允许你进行同步和异步的混合编程。我个人认为这是一个坏主意，但是Boost.Asio（就像C++一样）在你需要的时候允许你深入底层。
 
-* *boost::asio::buffer()*：这种buffer关联着一个Boost.Asio的操作（我们使用的buffer被传递给一个Boost.Asio的操作）
-* *boost::asio::streambuf*：这个buffer继承自*std::streambuf*，在网络编程中可以和STL stream一起使用
-
-纵观全书，之前的例子中最常见的例子如下：
+通常来说，当你写一个异步应用时，你会很容易掉入这个陷阱。比如在响应一个异步*write*操作时，你做了一个同步*read*操作：
 
 ```
-size_t read_complete(boost::system::error_code, size_t bytes){ ... }
-char buff[1024];
-read(sock, buffer(buff), read_complete);
-write(sock, buffer("echo\n"));
-```
-
-通常来说使用这个就能满足你的需要，如果你想要更复杂，你可以使用*streambuf*来实现。
-
-这个就是你可以用*streambuf*对象做的最简单也是最坏的事情：
-
-```
-streambuf buf;
-read(sock, buf);
-```
-
-这个会一直读到*streambuf*对象满了，然后因为*streambuf*对象可以通过自己重新开辟空间从而获取更多的空间，它基本会读到连接被关闭。
-
-你可以使用*read_until*一直读到一个特定的字符串：
-
-```
-streambuf buf;
-read_until(sock, buf, "\n");
-```
-
-这个例子会一直读到一个“\n”为止，把它添加到*buffer*的末尾，然后退出*read*方法。
-
-向一个*streambuf*对象写一些东西，你需要做一些类似下面的事情：
-
-```
-streambuf buf;
-std::ostream out(&buf);
-out << "echo" << std::endl;
-write(sock, buf);
-```
-
-这是非常直观的；你在构造函数中传递你的*streambuf*对象来构建一个STL stream，将其写入到你想要发送的消息中，然后使用*write*来发送buffer的内容。
-
-### Boost.Asio 和 STL stream
-
-Boost.Asio在集成STL stream和网络方面做了很棒的工作。也就是说，如果你已经在使用STL扩展，你肯定就已经拥有了大量重载了操作符<<和>>的类。从socket读或者写入它们就好像在公园漫步一样简单。
-
-假设你有下面的代码片段：
-
-```
-struct person {
-    std::string first_name, last_name;
-    int age;
-};
-std::ostream& operator<<(std::ostream & out, const person & p) {
-    return out << p.first_name << " " << p.last_name << " " << p.age;
+io_service service;
+ip::tcp::socket sock(service);
+ip::tcp::endpoint ep( ip::address::from_string("127.0.0.1"), 8001);
+void on_write(boost::system::error_code err, size_t bytes) {
+    char read_buff[512];
+    read(sock, buffer(read_buff));
 }
-std::istream& operator>>(std::istream & in, person & p) {
-    return in >> p.first_name >> p.last_name >> p.age;
+async_write(sock, buffer("echo"), on_write);
+```
+
+毫无疑问，同步*read*操作会阻塞当前的线程，从而导致其他任何正在等待的异步操作变成挂起状态（对这个线程）。这是一段糟糕的代码，因为它会导致整个应用变得无响应或者整个被阻塞掉（所有异步运行的端点都必须避免阻塞，而执行一个同步的操作违反了这个原则）。
+
+当你写一个同步应用时，你不大可能执行异步的*read*或者*write*操作，因为同步地思考已经意味着用一种线性的方式思考（执行A，然后执行B，再执行C，等等）。
+
+我唯一能想到的同步和异步同时工作的场景就是同步操作和异步操作是完全隔离的，比如，同步和异步从一个数据库进行读写。
+
+### 从客户端传递信息到服务端VS从服务端传递信息到客户端
+
+成功的客户端/服务端应用一个很重要的部分就是来回传递消息（服务端到客户端和客户端到服务端）。你需要指定用什么来标记一个消息。换句话说，当读取一个输入的消息时，你怎么判断它被完整读取了？
+
+标记消息结尾的方式完全取决于你（标记消息的开始很简单，因为它就是前一个消息之后传递过来的第一个字节），但是要保证消息是简单且连续的。
+
+你可以：
+
+* 消息大小固定（这不是一个很好的主意，如果我们需要发送更多的数据怎么办？）
+* 通过一个特殊的字符标记消息的结尾，比如’\n’或者’\0’
+* 在消息的头部指定消息的大小
+
+我在整本书中间采用的方式都是“使用’\n’标记消息的结尾”。所以，每次读取一条消息都会如下：
+
+```
+char buff_[512];
+// 同步读取
+read(sock_, buffer(buff_), boost::bind(&read_complete, this, _1, _2));
+// 异步读取
+async_read(sock_, buffer(buff_),MEM_FN2(read_complete,_1,_2), MEM_FN2(on_read,_1,_2));
+size_t read_complete(const boost::system::error_code & err, size_t bytes) {
+    if ( err) return 0;
+    already_read_ = bytes;
+    bool found = std::find(buff_, buff_ + bytes, '\n') < buff_ + bytes;
+    // 一个一个读，直到读到回车，无缓存
+    return found ? 0 : 1;
 } 
 ```
 
-通过网络发送这个*person*就像下面的代码片段这么简单：
+我把在消息头部指定消息长度这种方式作为一个练习留给读者；这非常简单。
+
+### 客户端应用中的同步I/O
+同步客户端一般都能归类到如下两种情况中的一种：
+
+* 它向服务端请求一些东西，读取结果，然后处理它们。然后请求一些其他的东西，然后一直持续下去。事实上，这很像之前章节里说到的同步客户端。
+* 从服务端读取消息，处理它，然后写回结果。然后读取另外一条消息，然后一直持续下去。
+
+![](http://d.pcs.baidu.com/thumbnail/afced0ba966461979115c3b94928be5b?fid=3238002958-250528-1088339667963019&time=1420768800&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-Wzu10j2zfRCbiH2H9xXAZ66NkEg%3D&rt=sh&expires=2h&r=250219040&sharesign=unknown&size=c710_u500&quality=100)
+
+两种情况都使用“发送请求－读取结果”的策略。换句话说，一个部分发送一个请求到另外一个部分然后另外一个部分返回结果。这是实现客户端/服务端应用非常简单的一种方式，同时这也是我非常推荐的一种方式。
+
+你可以创建一个*Mambo Jambo*类型的客户端服务端应用，你可以随心所欲地写它们中间的任何一个部分，但是这会导致一场灾难。（你怎么知道当客户端或者服务端阻塞的时候会发生什么？）。
+
+上面的情况看上去会比较相似，但是它们非常不同：
+
+* 前者，服务端响应请求（服务端等待来自客户端的请求然后回应）。这是一个请求式连接，客户端从服务端拉取它需要的东西。
+* 后者，服务端发送事件到客户端然后由客户端响应。这是一个推式连接，服务端推送通知/事件到客户端。
+
+你大部分时间都在做请求式客户端/服务端应用，这也是比较简单，同时也是比较常见的。
+
+你可以把拉取请求（客户端到服务端）和推送请求（服务端到客户端）结合起来，但是，这是非常复杂的，所以你最好避免这种情况
+。把这两种方式结合的问题在于：如果你使用“发送请求－读取结果”策略。就会发生下面一系列事情：
+
+* 客户端写入（发送请求）
+* 服务端写入（发送通知到客户端）
+* 客户端读取服务端写入的内容，然后将其作为请求的结果进行解析
+* 服务端阻塞以等待客户端的返回的结果，这会在客户端发送新请求的时候发生
+* 服务端把发送过来的请求当作它等待的结果进行解析
+* 客户端会阻塞（服务端不会返回任何结果，因为它把客户端的请求当作它通知返回的结果）
+
+在一个请求式客户端/服务端应用中，避免上面的情况是非常简单的。你可以通过实现一个ping操作的方式来模拟一个推送式请求，我们假设每5秒钟客户端ping一次服务端。如果没有事情需要通知，服务端返回一个类似*ping ok*的结果，如果有事情需要通知，服务端返回一个*ping [event_name]*。然后客户端就可以初始化一个新的请求去处理这个事件。
+
+复习一下，第一种情况就是之前章节中的同步客户端应用，它的主循环如下：
 
 ```
-streambuf buf;
-std::ostream out(&buf);
-person p;
-// … 初始化p
-out << p << std::endl;
-write(sock, buf);
-```
-
-另外一个部分也可以非常简单的读取：
-
-```
-read_until(sock, buf, "\n");
-std::istream in(&buf);
-person p;
-in >> p;
-```
-
-使用*streambuf*对象（当然，也包括它用来写入的*std::ostream*和用来读取的*std::istream*）时最棒的部分就是你最终的编码会很自然：
-* 当通过网络写入一些要发送的东西时，很有可能你会有多个片段的数据。所以，你需要把数据添加到一个buffer里面。如果那个数据不是一个字符串，你需要先把它转换成一个字符串。当使用<<操作符时这些操作默认都已经做了。
-* 同样，在另外一个部分，当读取一个消息时，你需要解析它，也就是说，读取到一个片段的数据时，如果这个数据不是字符串，你需要将它转换为字符串。当你使用>>操作符读取一些东西时这些也是默认就做了的。
-
-最后要给出的是一个非常著名，非常酷的诀窍，使用下面的代码片段把*streambuf*的内容输出到console中
-
-```
-streambuf buf;
-...
-std::cout << &buf << std::endl; //把所有内容输出到console中
-```
-
-同样的，使用下面的代码片段来把它的内容转换为一个*string*
-
-```
-std::string to_string(streambuf &buf) {
-    std::ostringstream out;
-    out << &buf;
-    return out.str();
+void loop() {
+    // 对于我们登录操作的结果
+    write("login " + username_ + "\n");
+    read_answer();
+    while ( started_) {
+        write_request();
+        read_answer();
+        ...
+    } 
 } 
 ```
 
-### streambuf类
-
-我之前说过，*streambuf*继承自*std::streambuf*。就像*std::streambuf*本身，它不能拷贝构造。
-
-另外，它有一些额外的方法，如下：
-* *streambuf([max_size,][allocator])*：这个方法构造了一个*streambuf*对象。你可以选择指定一个最大的buffer大小和一个分配器，分配器用来在需要的时候分配/释放内存。
-* *prepare(n)*：这个方法返回一个子buffer，用来容纳连续的n个字符。它可以用来读取或者写入。方法返回的结果可以在任何Boost.Asio处理*read/write*的自由函数中使用，而不仅仅是那些用来处理*streambuf*对象的方法。
-* *data()*：这个方法以连续的字符串形式返回整个buffer然后用来写入。方法返回的结果可以在任何Boost.Asio处理写入的自由函数中使用，而不仅仅是那些用来处理streambuf对象的方法。
-* *comsume(n)*：在这个方法中，数据从输入队列中被移除（从read操作）
-* *commit(n)*：在这个方法中，数据从输出队列中被移除(从write操作)然后加入到输入队列中（为read操作准备）。
-* *size()*：这个方法以字节为单位返回整个streambuf对象的大小。
-* *max_size()*：这个方法返回最多能保存的字节数。
-
-除了最后的两个方法，其他的方法不是那么容易理解。首先，大部分时间你会把*streambuf*以参数的方式传递给*read/write*自由函数，就像下面的代码片段展示的一样：
+我们对其进行修改以适应第二种情况：
 
 ```
-read_until(sock, buf, "\n"); // 读取到buf中
-write(sock, buf); // 从buf写入
-```
-
-如果你想之前的代码片段展示的一样把整个buffer都传递到一个自由函数中，方法会保证把buffer的输入输出指针指向的位置进行增加。也就是说，如果有数据需要读，你就能读到它。比如：
-
-```
-read_until(sock, buf, '\n');
-std::cout << &buf << std::endl;
-```
-
-上述代码会把你刚从socket写入的东西输出。而下面的代码不会输出任何东西：
-
-```
-read(sock, buf.prepare(16), transfer_exactly(16) );
-std::cout << &buf << std::endl;
-```
-
-字节被读取了，但是输入指针没有移动，你需要自己移动它，就像下面的代码片段所展示的：
-
-```
-read(sock, buf.prepare(16), transfer_exactly(16) );
-buf.commit(16);
-std::cout << &buf << std::endl;
-```
-
-同样的，假设你需要从*streambuf*对象中写入，如果你使用了*write*自由函数，则需要像下面一样：
-
-```
-streambuf buf;
-std::ostream out(&buf);
-out << "hi there" << std::endl;
-write(sock, buf);
-```
-
-下面的代码会把hi there发送三次：
-
-```
-streambuf buf;
-std::ostream out(&buf);
-out << "hi there" << std::endl;
-for ( int i = 0; i < 3; ++i)
-    write(sock, buf.data());
-```
-
-发生的原因是因为buffer从来没有被消耗过，因为数据还在。如果你想消耗它，使用下面的代码片段：
-
-```
-streambuf buf;
-std::ostream out(&buf);
-out << "hi there" << std::endl;
-write(sock, buf.data());
-buf.consume(9);
-```
-
-总的来说，你最好选择一次处理整个*streambuf*实例。如果需要调整则使用上述的方法。
-
-尽管你可以在读和写操作时使用同一个*streambuf*，你仍然建议你分开使用两个，一个读另外一个写，它会让事情变的简单，清晰，同时你也会减少很多导致bug的可能。
-
-### 处理streambuf对象的自由函数
-
-下面列出了Boost.Asio中处理streambuf对象的自由函数：
-
-* *read(sock, buf[, completion_function])*：这个方法把内容从socket读取到*streambuf*对象中。*completion*方法是可选的。如果有，它会在每次*read*操作成功之后被调用，然后告诉Boost.Asio这个操作是否完成（如果没有，它继续读取）。它的格式是：*size_t completion(const boost::system::error_code & err, size_t bytes_transfered);*，如果*completion*方法返回0，我们认为*read*操作完成了，如果非0，它表示下一次调用stream的*read_some*方法需要读取的最大的字节数。
-* *read_at(random_stream, offset, buf [, completion_function])*: 这个方法从一个支持随机读取的stream中读取。注意它没有被应用到socket中（因为他们没有随机读取的模型，它们是单向的，一直向前）。
-* *read_until(sock, buf, char \ string \ regex \ match_condition)*: 这个方法一直读到满足一个特性的条件为止。或者是一个char类型的数据被读到，或者是一个字符串被读到，或者是一个目前读到的字符串能匹配的正则表达式，或者*match_condition*方法告诉我们需要结束这个方法。*match_condition*方法的格式是：*pair<iterator,bool> match(iterator begin, iterator end);* ，*iterator*代表 *buffers_ iterator<streambuf::const_buffers_type>*。如果匹配到，你需要返回一个*pair*（*passed_end_of_match*被设置成true）。如果没有匹配到，你需要返回*pair*（begin被设置为false）。
-* *write(sock, buf [, completion_function])*:  这个方法写入*streambuf*对象所有的内容。*completion*方法是可选的，它的表现和*read()*的*completion*方法类似：当write操作完成时返回0，或者返回一个非0数代表下一次调用stream的*write_some*方法需要写入的最大的字节数。
-* *write_at(random_stream,offset, buf [, completion_function])*: 这个方法用来向一个支持随机存储的stream写入。同样，它没有被应用到socket中。
-* *async_read(sock, buf [, competion_function], handler)*:  这个方法是*read()*的异步实现，handler的格式为：*void handler(const boost::system::error_code, size_t bytes)*。
-* *async_read_at(radom_stream, offset, buf [, completion_function] , handler)*: 这个方法是*read_at()*的异步实现。
-* *async_read_until (sock, buf, char \ string \ regex \ match_ condition, handler)*:  这个方法是*read_until()*的异步实现。
-* *async_write(sock, buf [, completion_function] , handler)*:  这个方法是*write()*的异步实现。
-* *async_write_at(random_stream,offset, buf [, completion_function] , handler)*:  这个方法是*write_at()*的异步实现。
-
-我们假设你需要一直读取直到读到一个元音字母：
-
-```
-streambuf buf;
-bool is_vowel(char c) {
-    return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
-}
-size_t read_complete(boost::system::error_code, size_t bytes) {
-    const char * begin = buffer_cast<const char*>( buf.data());
-    if ( bytes == 0) return 1;
-    while ( bytes > 0)
-        if ( is_vowel(*begin++)) return 0;
-        else --bytes;
-    return 1;
-}
-...
-read(sock, buf, read_complete);
-```
-
-这里需要注意的事情是对*read_complete()*中buffer的访问，也就是*buffer_cast<>*和*buf.data*。
-
-如果你使用正则，上面的例子会更简单：
-
-```
-read_until(sock, buf, boost::regex("^[aeiou]+") ); 
-```
-
-或者我们修改例子来让*match_condition*方法工作起来：
-
-```
-streambuf buf;
-bool is_vowel(char c) {
-    return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
-}
-typedef buffers_iterator<streambuf::const_buffers_type> iterator;
-std::pair<iterator,bool> match_vowel(iterator b, iterator e) {
-    while ( b != e)
-        if ( is_vowel(*b++)) return std::make_pair(b, true);
-    return std::make_pair(e, false);
-}
-...
-size_t bytes = read_until(sock, buf, match_vowel);
-```
-
-当使用*read_until*时会有个难点：你需要记住你已经读取的字节数，因为下层的buffer可能多读取了一些字节（不像使用*read()*时）。比如：
-
-```
-std::cout << &buf << std::endl;
-```
-
-上述代码输出的字节可能比*read_until*读取到的多。
-
-### 协程
-
-Boost.Asio的作者在2009-2010年间实现了非常酷的一个部分，协程，它能让你更简单地设计你的异步应用。
-
-它们可以让你同时享受同步和异步两个世界中最好的部分，也就是：异步编程但是很简单就能遵循流程控制，就好像应用是按流程实现的。
-
-![](http://d.pcs.baidu.com/thumbnail/75bba5ebc1781380baf5c8ecf40b7f6e?fid=3238002958-250528-571276571493867&time=1420772400&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-xqB0SvR9wei6sSPHYGH86JOKGw4%3D&rt=sh&expires=2h&r=263323555&sharesign=unknown&size=c710_u500&quality=100)
-
-正常的流程已经在情形1种展示了，如果使用协程，你会尽可能的接近情形2。
-
-简单来说，就是协程允许在方法中的指定位置开辟一个入口来暂停和恢复运行。
-
-如果要使用协程，你需要在*boost/libs/asio/example/http/server4*目录下的两个头文件：*yield.hpp*和*coroutine.hpp*。在这里，Boost.Asio定义了两个虚拟的关键词（宏）和一个类：
-
-* *coroutine*：这个类在实现协程时被你的连接类继承或者使用。
-* *reenter(entry)*：这个是协程的主体。参数*entry*是一个指向*coroutine*实例的指针，它被当作一个代码块在整个方法中使用。
-* *yield code*：它把一个声明当作协程的一部分来运行。当下一次进入方法时，操作会在这段代码之后执行。
-
-为了更好的理解，我们来看一个例子。我们会重新实现 **第四章 异步客户端** 中的应用，这是一个可以登录，ping，然后能告诉你其他已登录客户端的简单客户端应用。
-核心代码和下面的代码片段类似：
-
-```
-class talk_to_svr : public boost::enable_shared_from_this<talk_to_svr>, public coroutine, boost::noncopyable {
-    ...
-    void step(const error_code & err = error_code(), size_t bytes = 0) {
-        reenter(this) 
-        { 
-            for (;;) {
-                yield async_write(sock_, write_buffer_, MEM_FN2(step,_1,_2) );
-                yield async_read_until( sock_, read_buffer_,"\n", MEM_FN2(step,_1,_2));
-                yield service.post( MEM_FN(on_answer_from_server));
-            }
-        } 
+void loop() {
+    while ( started_) {
+        read_notification();
+        write_answer();
     }
+}
+void read_notification() {
+    already_read_ = 0;
+    read(sock_, buffer(buff_), boost::bind(&talk_to_svr::read_complete, this, _1, _2));
+    process_notification();
+}
+void process_notification() {
+    // ... 看通知是什么，然后准备回复
+}
+```
+
+### 服务端应用中的同步I/O
+
+类似客户端，服务端也被分为两种情况用来匹配之前章节中的情况1和情况2。同样，两种情况都采用“发送请求－读取结果”的策略。
+
+![](http://d.pcs.baidu.com/thumbnail/4aff201a379d1b5f6cf9da5bfce07bdd?fid=3238002958-250528-307717205941237&time=1420768800&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-6Q2ORNCx0wFDvBiqKwzta3be7Ic%3D&rt=sh&expires=2h&r=196560765&sharesign=unknown&size=c710_u500&quality=100)
+
+第一种情况是我们在之前章节实现过的同步服务端。当你是同步时读取一个完整的请求不是很简单，因为你需要避免阻塞（通常来说是能读多少就读多少）：
+
+```
+void read_request() {
+    if ( sock_.available())
+}
+already_read_ += sock_.read_some(buffer(buff_ + already_read_, max_msg - already_read_));
+```
+
+只要一个消息被完整读到，就对它进行处理然后回复给客户端：
+
+```
+void process_request() {
+    bool found_enter = std::find(buff_, buff_ + already_read_, '\n') < buff_ + already_read_;
+    if ( !found_enter)
+        return; // 消息不完整
+    size_t pos = std::find(buff_, buff_ + already_read_, '\n') - buff_;
+    std::string msg(buff_, pos);
+    ...
+    if ( msg.find("login ") == 0) on_login(msg);
+    else if ( msg.find("ping") == 0) on_ping();
+    else ...
+} 
+```
+
+如果我们想让服务端变成一个推送服务端，我们通过如下的方式修改：
+
+```
+typedef std::vector<client_ptr> array;
+array clients;
+array notify;
+std::string notify_msg;
+void on_new_client() {
+    // 新客户端连接时，我们通知所有客户端这个事件
+    notify = clients;
+    std::ostringstream msg;
+    msg << "client count " << clients.size();
+    notify_msg = msg.str();
+    notify_clients();
+}
+void notify_clients() {
+    for ( array::const_iterator b = notify.begin(), e = notify.end(); b != e; ++b) {
+        (*b)->sock_.write_some(notify_msg);
+    }
+} 
+```
+
+*on_new_client()*方法是事件之一，这个事件我们需要通知所有的客户端。*notify_clients*是通知所有对一个事件感兴趣客户端的方法。它发送消息但是不等待每个客户端返回的结果，因为那样的话就会导致阻塞。当客户端返回一个结果时，客户端会告诉我们它为什么回复（然后我们就可以正确地处理它）。
+
+#### 同步服务端中的线程
+
+这是一个非常重要的关注点：我们开辟多少线程去处理服务端请求？
+对于一个同步服务端，我们至少需要一个处理新连接的线程：
+
+```
+void accept_thread() {
+    ip::tcp::acceptor acceptor(service, ip::tcp::endpoint(ip::tcp::v4(),8001));
+    while ( true) {
+        client_ptr new_( new talk_to_client);
+        acceptor.accept(new_->sock());
+        boost::recursive_mutex::scoped_lock lk(cs);
+        clients.push_back(new_);
+    } 
+} 
+```
+
+对于已经存在的客户端：
+
+* 我们可以是单线程。这是最简单的，同时也是我在**第四章 同步服务端**中采用的实现方式。它可以很轻松地处理100-200并发的客户端而且有时候会更多，对于大多数情况来说这已经足够用了。
+* 我们可以对每个客户端开一个线程。这不是一个很好的选择；他会浪费很多线程而且有时候会导致调试困难，而且当它需要处理200以上并发的客户端的时候，它可能马上会到达它的瓶颈。
+* 我们可以用一些固定数量的线程去处理已经存在的客户端
+
+第三种选择是同步服务端中最难实现的；整个*talk_to_client*类需要是线程安全的。然后，你需要一个机制来确定哪个线程处理哪个客户端。对于这个问题，你有两个选择：
+
+* 将特定的客户端分配给特定的线程；比如，线程1处理前面20个客户端，线程2处理21到40个线程，等等。当一个线程在使用时（我们在等待被客户端阻塞的一些东西），我们从已存在客户端列表中将其取出来。等我们处理完之后，再把它放回到列表中。每个线程都会循环遍历已经存在的客户端列表，然后把拥有完整请求的第一个客户端提出来（我们已经从客户端读取了一条完整的消息），然后回复它。
+* 服务端可能会变得无响应
+    * 第一种情况，被同一个线程处理的几个客户端同时发送请求，因为一个线程在同一时刻只能处理一个请求。所以这种情况我们什么也不能做。
+    * 第二种情况，如果我们发现并发请求大于当前线程个数的时候。我们可以简单地创建新线程来处理当前的压力。
+
+下面的代码片段有点类似之前的*answer_to_client*方法，它向我们展示了第二种方法的实现方式：
+
+```
+struct talk_to_client : boost::enable_shared_from_this<talk_to_client>
+{
+    ...
+    void answer_to_client() {
+        try {
+            read_request();
+            process_request();
+        } catch ( boost::system::system_error&) { stop(); }
+    } 
 }; 
 ```
 
-首先改变的事就是：我们只有一个叫做*step()*的方法，而没有大量类似*connect()，on_connect()，on_read()，do_read()，on_write()，do_write()*等等的成员方法。
-
-方法的主体在*reenter(this) { for (;;) { }}* 内。你可以把*reenter(this)*当作我们上次运行的代码，所以这次我们执行的是下一次的代码。
-
-在*reenter*代码块中，你会发现几个*yield*声明。你第一次进入方法时，*async_write*方法被执行，第二次*async_read_until*方法被执行，第三次*service.post*方法被执行，然后第四次*async_write*方法被执行，然后一直循环下去。
-
-你需要一直记住*for(;;){}*实例。参考下面的代码片段：
+我们需要对它进行修改使它变成下面代码片段的样子：
 
 ```
-void step(const error_code & err = error_code(), size_t bytes = 0) {
-    reenter(this) {
-        yield async_write(sock_, write_buffer_, MEM_FN2(step,_1,_2) );
-        yield async_read_until( sock_, read_buffer_, "\n",MEM_FN2(step,_1,_2));
-        yield service.post(MEM_FN(on_answer_from_server));
-    }
-} 
-```
-
-如果我们第三次使用上述的代码片段，我们会进入方法然后执行*service.post*。当我们第四次进入方法时，我们跳过*service.post*，不执行任何东西。当执行第五次时仍然不执行任何东西，然后一直这样下去：
-
-```
-class talk_to_svr : public boost::enable_shared_from_this<talk_to_svr>, public coroutine, boost::noncopyable {
-    talk_to_svr(const std::string & username) : ... {}
-    void start(ip::tcp::endpoint ep) {
-        sock_.async_connect(ep, MEM_FN2(step,_1,0) );
-    }
-    static ptr start(ip::tcp::endpoint ep, const std::string &username) {
-        ptr new_(new talk_to_svr(username));
-        new_->start(ep); 
-        return new_;
-    }
-    void step(const error_code & err = error_code(), size_t bytes = 0)
-    {
-        reenter(this) { 
-            for (;;) {
-                if ( !started_) {
-                    started_ = true;
-                    std::ostream out(&write_buf_);
-                    out << "login " << username_ << "\n";
-                }
-                yield async_write(sock_, write_buf_,MEM_FN2(step,_1,_2));
-                yield async_read_until( sock_,read_buf_,"\n",MEM_FN2(step,_1,_2));
-                yield service.post(MEM_FN(on_answer_from_server));
+struct talk_to_client : boost::enable_shared_from_this<talk_to_client>
+{
+    boost::recursive_mutex cs;
+    boost::recursive_mutex cs_ask;
+    bool in_process;
+    void answer_to_client() {
+        { boost::recursive_mutex::scoped_lock lk(cs_ask);
+            if ( in_process)
+                return;
+            in_process = true;
+        }
+        { boost::recursive_mutex::scoped_lock lk(cs);
+            try {
+                read_request();
+                process_request();
+            }catch ( boost::system::system_error&) {
+                stop();
             }
         }
-    }
-    void on_answer_from_server() {
-        std::istream in(&read_buf_);
-        std::string word;
-        in >> word;
-        if ( word == "login") on_login();
-        else if ( word == "ping") on_ping();
-        else if ( word == "clients") on_clients();
-        read_buf_.consume( read_buf_.size());
-        if (write_buf_.size() > 0) service.post(MEM_FN2(step,error_code(),0));
-    }
-    ... 
-private:
-    ip::tcp::socket sock_;
-    streambuf read_buf_, write_buf_;
-    bool started_;
-    std::string username_;
-    deadline_timer timer_;
-};
-```
-
-当我们启动连接时，*start()*被调用，然后它会异步地连接到服务端。当连接完成时，我们第一次进入*step()*。也就是我们发送我们登录信息的时候。
-
-在那之后，我们调用*async_write*，然后调用*async_read_until*，再处理消息（*on_answer_from_server*）。
-
-我们在*on_answer_from_server*处理接收到的消息；我们读取第一个字符，然后把它分发到相应的方法。剩下的消息（如果还有一些消息没读完）我们都忽略掉：
-
-```
-class talk_to_svr : ... {
-    ...
-    void on_login() { do_ask_clients(); }
-    void on_ping() {
-        std::istream in(&read_buf_);
-        std::string answer; in >> answer;
-        if ( answer == "client_list_changed")
-            do_ask_clients();
-        else postpone_ping();
-    }
-    void on_clients() {
-        std::ostringstream clients; clients << &read_buf_;
-        std::cout << username_ << ", new client list:" << clients.str();
-        postpone_ping();
-    }
-    void do_ping() {
-        std::ostream out(&write_buf_); out << "ping\n";
-        service.post( MEM_FN2(step,error_code(),0));
+        { boost::recursive_mutex::scoped_lock lk(cs_ask);
+            in_process = false;
+        }
     } 
-    void postpone_ping() {
-        timer_.expires_from_now(boost::posix_time::millisec(rand() % 7000));
-        timer_.async_wait( MEM_FN(do_ping));
-    }
-    void do_ask_clients() {
-        std::ostream out(&write_buf_);
-        out << "ask_clients\n";
-    }
 }; 
 ```
 
-完整的例子还会更复杂一点，因为我们需要随机地ping服务端。实现这个功能我们需要在第一次请求客户端列表完成之后做一个ping操作。然后，在每个从服务端返回的ping操作的结果中，我们做另外一个ping操作。
+当我们在处理一个客户端请求的时候，它的*in_process*变量被设置成*true*，其他的线程就会忽略这个客户端。额外的福利就是*handle_clients_thread()*方法不需要做任何修改；你可以随心所欲地创建你想要数量的*handle_clients_thread()*方法。
 
-使用下面的代码片段来执行整个过程：
+### 客户端应用中的异步I/O
+
+主流程和同步客户端应用有点类似，不同的是Boost.Asio每次都位于async_read和async_write请求中间。
+
+![](http://d.pcs.baidu.com/thumbnail/4431fc70c5c5a176aab77ed4d987bbee?fid=3238002958-250528-465126390059981&time=1420768800&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-QwJ4QJrMKJk%2Bzc7ffqY4IOqw2Es%3D&rt=sh&expires=2h&r=492020751&sharesign=unknown&size=c710_u500&quality=100)
+
+第一种情况是我在**第四章 客户端和服务端** 中实现过的。你应该还记得在每个异步操作结束的时候，我都启动另外一个异步操作，这样*service.run()*方法才不会结束。
+
+为了适应第二种情况，你需要使用下面的代码片段：
 
 ```
-int main(int argc, char* argv[]) {
-    ip::tcp::endpoint ep(ip::address::from_string("127.0.0.1"),8001);
-    talk_to_svr::start(ep, "John");
+void on_connect() {
+    do_read();
+}
+void do_read() {
+    async_read(sock_, buffer(read_buffer_), MEM_FN2(read_complete,_1,_2), MEM_FN2(on_read,_1,_2));
+}
+void on_read(const error_code & err, size_t bytes) {
+    if ( err) stop();
+    if ( !started() ) return;
+    std::string msg(read_buffer_, bytes);
+    if ( msg.find("clients") == 0) on_clients(msg);
+    else ...
+}
+void on_clients(const std::string & msg) {
+    std::string clients = msg.substr(8);
+    std::cout << username_ << ", new client list:" << clients ;
+    do_write("clients ok\n");
+} 
+```
+
+注意只要我们成功连接上，我们就开始从服务端读取。每个*on_[event]*方法都会通过写一个回复给服务端的方式来结束我们。
+
+使用异步的美好在于你可以使用Boost.Asio进行管理，从而把I/O网络操作和其他异步操作结合起来。尽管它的流程不像同步的流程那么清晰，你仍然可以用同步的方式来想象它。
+
+假设，你从一个web服务器读取文件然后把它们保存到一个数据库中（异步地）。你可以把这个过程想象成下面的流程图：
+
+![](http://d.pcs.baidu.com/thumbnail/ee2f4effd44e33822fc13cda59436f5c?fid=3238002958-250528-275385722128526&time=1420772400&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-CZwCGSbdzZ3ZnQj88OTAnBY8Fyc%3D&rt=sh&expires=2h&r=883620133&sharesign=unknown&size=c710_u500&quality=100)
+
+### 服务端应用的异步I/O
+
+现在要展示的是两个普遍的情况，情况1（拉取）和情况2（推送）
+
+![](http://d.pcs.baidu.com/thumbnail/8c4401c002293f790b56a0810652c29a?fid=3238002958-250528-53644841091289&time=1420772400&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-W8qD0tBIo0TDcNgk0icVoRTIneo%3D&rt=sh&expires=2h&r=395851440&sharesign=unknown&size=c710_u500&quality=100)
+
+第一种情况同样是我在**第4章 客户端和服务端** 中实现的异步服务端。在每一个异步操作最后，我都会启动另外一个异步操作，这样的话service.run()就不会结束。
+现在要展示的是被剪裁过的框架代码。下面是talk_to_client类所有的成员：
+
+```
+void start() {
+    ...
+    do_read(); // first, we wait for client to login
+}
+void on_read(const error_code & err, size_t bytes) {
+    std::string msg(read_buffer_, bytes);
+    if ( msg.find("login ") == 0) on_login(msg);
+    else if ( msg.find("ping") == 0) on_ping();
+    else
+    ...
+}
+void on_login(const std::string & msg) {
+    std::istringstream in(msg);
+    in >> username_ >> username_;
+    do_write("login ok\n");
+}
+void do_write(const std::string & msg) {
+    std::copy(msg.begin(), msg.end(), write_buffer_);
+    sock_.async_write_some( buffer(write_buffer_, msg.size()), MEM_FN2(on_write,_1,_2));
+}
+void on_write(const error_code & err, size_t bytes) { do_read(); } 
+```
+
+简单来说，我们始终等待一个*read*操作，而且只要一发生，我们就处理然后将结果返回给客户端。
+
+我们把上述代码进行修改就可以完成一个推送服务端
+
+```
+void start() {
+    ...
+    on_new_client_event();
+}
+void on_new_client_event() {
+    std::ostringstream msg;
+    msg << "client count " << clients.size();
+    for ( array::const_iterator b = clients.begin(), e = clients.end(); (*b)->do_write(msg.str());
+} 
+void on_read(const error_code & err, size_t bytes) {
+    std::string msg(read_buffer_, bytes);
+    // 在这里我们基本上只知道我们的客户端接收到我们的通知
+}
+void do_write(const std::string & msg) {
+    std::copy(msg.begin(), msg.end(), write_buffer_);
+    sock_.async_write_some( buffer(write_buffer_, msg.size()), MEM_FN2(on_write,_1,_2));
+}
+void on_write(const error_code & err, size_t bytes) { do_read(); } 
+```
+
+只要有一个事件发生，我们假设*是on_new_client_event*，所有需要被通知到的客户端就都收到一条信息。当它们回复时，我们简单认为他们已经确认收到事件。注意我们永远不会把正在等待的异步操作用尽（所以，*service.run()*不会结束），因为我们一直在等待一个新的客户端：
+
+```
+ip::tcp::acceptor acc(service, ip::tcp::endpoint(ip::tcp::v4(), 8001));
+void handle_accept(talk_to_client::ptr client, const error_code & err)
+{
+    client->start();
+    talk_to_client::ptr new_client = talk_to_client::new_();
+    acc.async_accept(new_client->sock(), bind(handle_accept,new_client,_1));
+}
+```
+
+#### 异步服务端中的多线程
+
+我在**第4章 客户端和服务端** 展示的异步服务端是单线程的，所有的事情都发生在main()中：
+
+```
+int main() {
+    talk_to_client::ptr client = talk_to_client::new_();
+    acc.async_accept(client->sock(), boost::bind(handle_
+accept,client,_1));
     service.run();
 } 
 ```
 
-使用协程，我们节约了15行代码，而且代码也变的更加易读。
+异步的美妙之处就在于可以非常简单地把单线程变为多线程。你可以一直保持单线程直到你的并发客户端超过200。然后，你可以使用如下的代码片段把单线程变成100个线程：
 
-在这里我们仅仅接触了协程的一点皮毛。如果你想要了解更多，请登录作者的个人主页：[http://blog.think-async.com/2010_03_01_archive.html](http://blog.think-async.com/2010_03_01_archive.html)。
+```
+boost::thread_group threads;
+void listen_thread() {
+    service.run();
+}
+void start_listen(int thread_count) {
+    for ( int i = 0; i < thread_count; ++i)
+        threads.create_thread( listen_thread);
+}
+int main(int argc, char* argv[]) {
+    talk_to_client::ptr client = talk_to_client::new_();
+    acc.async_accept(client->sock(), boost::bind(handle_accept,client,_1));
+    start_listen(100);
+    threads.join_all();
+}
+```
 
-### 总结
+当然，一旦你选择了多线程，你需要考虑线程安全。尽管你在线程A中调用了*async_**，但是它的完成处理流程可以在线程B中被调用（因为线程B也调用了*service.run()*）。对于它本身而言这不是问题。只要你遵循逻辑流程，也就是从*async_read()*到*on_read()*，从*on_read()*到p*rocess_request*，从*process_request*到*async_write()*，从*async_write()*到*on_write()*，从*on_write()*到a*sync_read()*，然后在你的*talk_to_client*类中也没有被调用的公有方法，这样的话尽管不同的方法可以在不同的线程中被调用，它们还是会被有序地调用。从而不需要互斥量。
 
-我们已经了解了如何使用Boost.Asio玩转STL stream和streambuf对象。我们也了解了如何使用协程来让我们的代码更加简洁和易读。
+这也意味着对于一个客户端，只会有一个异步操作在等待。假如在某些情况，一个客户端有两个异步方法在等待，你就需要互斥量了。这是因为两个等待的操作可能正好在同一个时间完成，然后我们就会在两个不同的线程中间同时调用他们的完成处理函数。所以，这里需要线程安全，也就是需要使用互斥量。
+在我们的异步服务端中，我们确实同时有两个等待的操作：
 
-下面就是重头戏了，比如Asio VS Boost.Asio，高级调试，SSL和平台相关特性。
+```
+void do_read() {
+    async_read(sock_, buffer(read_buffer_),MEM_FN2(read_complete,_1,_2), MEM_FN2(on_read,_1,_2));
+    post_check_ping();
+}
+void post_check_ping() {
+    timer_.expires_from_now(boost::posix_time::millisec(5000));
+    timer_.async_wait( MEM_FN(on_check_ping));
+}
+```
+
+当在做一个*read*操作时，我们会异步等待*read*操作完成和超时。所以，这里需要线程安全。
+
+我的建议是，如果你准备使用多线程，从开始就保证你的类是线程安全的。通常这不会影响它的性能（当然你也可以在配置中设置开关）。同时，如果你准备使用多线程，从一个开始就使用。这样的话你能尽早地发现可能存在的问题。一旦你发现一个问题，你首先需要检查的事情就是：单线程运行的时候是否会发生？如果是，它很简单；只要调试它就可以了。否则，你可能忘了对一些方法加锁（互斥量）。
+
+因为我们的例子需要是线程安全的，我已经把*talk_to_client*修改成使用互斥量的了。同时，我们也有一个客户端连接的列表，它也需要自己的互斥量，因为我们有时需要访问它。
+
+避免死锁和内存冲突不是那么容易。下面是我需要对*update_client_changed()*方法进行修改的地方：
+
+```
+void update_clients_changed() {
+    array copy;
+    { boost::recursive_mutex::scoped_lock lk(clients_cs); copy = clients; }
+    for( array::iterator b = copy.begin(), e = copy.end(); b != e; ++b)
+        (*b)->set_clients_changed();
+} 
+```
+
+你需要避免的是同时有两个互斥量被锁定（这会导致死锁）。在我们的例子中，我们不想*clients_cs*和一个客户端的*cs_*互斥量同时被锁住
+
+### 异步操作
+
+Boost.Asio同样允许你异步地运行你任何一个方法。仅仅需要使用下面的代码片段：
+
+```
+void my_func() {
+    ...
+}
+service.post(my_func);
+```
+
+这样就可以保证*my_func*在调用了*service.run()*方法的某个线程中间被调用。你同样可以异步地调用一个有完成处理handler的方法，方法的handler会在方法结束的时候通知你。伪代码如下：
+
+```
+void on_complete() {
+    ...
+}
+void my_func() {
+    ...
+    service.post(on_complete);
+}
+async_call(my_func);
+```
+
+没有现成的*async_call*方法，因此，你需要自己创建。幸运的是，它不是很复杂，参考下面的代码片段：
+
+```
+struct async_op : boost::enable_shared_from_this<async_op>, ... {
+    typedef boost::function<void(boost::system::error_code)>completion_func;
+    typedef boost::function<boost::system::error_code ()> op_func;
+    struct operation { ... };
+    void start() {
+        { boost::recursive_mutex::scoped_lock lk(cs_);
+            if ( started_) return; started_ = true; }
+        boost::thread t(boost::bind(&async_op::run,this));
+    }
+    void add(op_func op, completion_func completion, io_service &service) {
+        self_ = shared_from_this();
+        boost::recursive_mutex::scoped_lock lk(cs_);
+        ops_.push_back( operation(service, op, completion));
+        if ( !started_) start();
+    } 
+    void stop() {
+        boost::recursive_mutex::scoped_lock lk(cs_);
+        started_ = false; ops_.clear();
+    } 
+private:
+    boost::recursive_mutex cs_;
+    std::vector<operation> ops_;
+    bool started_;
+    ptr self_;
+};
+```
+
+*async_op*方法创建了一个后台线程，这个线程会运行（*run()*）你添加（*add()*）到它里面的所有的异步操作。为了让事情简单一些，每个操作都包含下面的内容：
+
+* 一个异步调用的方法
+* 当第一个方法结束时被调用的一个完成处理handler
+* 会运行完成处理handler的io_service实例。这也是完成时通知你的地方。参考下面的代码：
+
+```
+struct async_op : boost::enable_shared_from_this<async_op>, private boost::noncopyable {
+    struct operation {
+        operation(io_service & service, op_func op, completion_func completion) : service(&service), op(op), completion(completion) , work(new io_service::work(service)) {}
+        operation() : service(0) {}
+        io_service * service;
+        op_func op;
+        completion_func completion;
+        typedef boost::shared_ptr<io_service::work> work_ptr;
+        work_ptr work;
+    };
+    ... 
+}; 
+```
+
+它们被*operation*结构体包含在内部。注意当有一个操作在等待时，我们在操作的构造方法中构造一个*io_service::work*实例，从而保证直到我们完成异步调用之前*service.run()*都不会结束（当*io_service::work*实例保持活动时，*service.run()*就会认为它有工作需要做）。参考下面的代码片段：
+
+```
+struct async_op : ... {
+    typedef boost::shared_ptr<async_op> ptr;
+    static ptr new_() { return ptr(new async_op); }
+    ...
+    void run() {
+        while ( true) {
+            { boost::recursive_mutex::scoped_lock lk(cs_);
+                if ( !started_) break; }
+            boost::this_thread::sleep(boost::posix_time::millisec(10));
+            operation cur;
+            { boost::recursive_mutex::scoped_lock lk(cs_);
+                if ( !ops_.empty()) {
+                    cur = ops_[0]; 
+                    ops_.erase(ops_.begin());
+                }
+            }
+            if ( cur.service)
+                cur.service->post(boost::bind(cur.completion, cur.op()));        
+        }
+        self_.reset();
+    }
+}; 
+```
+
+*run()*方法就是后台线程；它仅仅观察是否有工作需要做，如果有，就一个一个地运行这些异步方法。在每个调用结束的时候，它会调用相关的完成处理方法。
+
+为了测试，我们创建一个会被异步执行的*compute_file-checksum*方法
+
+```
+size_t checksum = 0;
+boost::system::error_code compute_file_checksum(std::string file_name)
+{
+    HANDLE file = ::CreateFile(file_name.c_str(),GENERIC_READ, 0, 0,OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, 0);
+    windows::random_access_handle h(service, file);
+    long buff[1024];
+    checksum = 0;
+    size_t bytes = 0, at = 0;
+    boost::system::error_code ec;
+    while ( (bytes = read_at(h, at, buffer(buff), ec)) > 0) {
+        at += bytes; bytes /= sizeof(long);
+        for ( size_t i = 0; i < bytes; ++i)
+            checksum += buff[i];
+    }
+    return boost::system::error_code(0,boost::system::generic_category());
+}
+void on_checksum(std::string file_name, boost::system::error_code) {
+    std::cout << "checksum for " << file_name << "=" << checksum << std::endl;
+}
+int main(int argc, char* argv[]) {
+    std::string fn = "readme.txt";
+    async_op::new_()->add( service, boost::bind(compute_file_checksum,fn),boost::bind(on_checksum,fn,_1));
+    service.run();
+}
+```
+
+注意我展示给你的只是实现异步调用一个方法的一种可能。除了像我这样实现一个后台线程，你可以使用一个内部*io_service*实例，然后推送（*post()*）异步方法给这个实例调用。这个作为一个练习留给读者。
+
+你也可以扩展这个类让其可以展示一个异步操作的进度（比如，使用百分比）。这样做你就可以在主线程通过一个进度条来显示进度。
+
+### 代理实现
+
+代理一般位于客户端和服务端之间。它接受客户端的请求，可能会对请求进行修改，然后接着把请求发送到服务端。然后从服务端取回结果，可能也会对结果进行修改，然后接着把结果发送到客户端。
+
+![](http://d.pcs.baidu.com/thumbnail/0d46b36ce96944c80215c9d222b320d7?fid=3238002958-250528-198047002317925&time=1420772400&sign=FDTAER-DCb740ccc5511e5e8fedcff06b081203-TCr9tmAKwz40%2F9XC%2FhzcAzQbtN8%3D&rt=sh&expires=2h&r=321797592&sharesign=unknown&size=c710_u500&quality=100)
+
+代理有什么特别的？我们讲述它的目的在于：对每个连接，你都需要两个sokect，一个给客户端，另外一个给服务端。这些都给实现一个代理增加了不小的难度。
+
+实现一个同步的代理应用比异步的方式更加复杂；数据可能同时从两个端过来（客户端和服务端），也可能同时发往两个端。这也就意味着如果我们选择同步，我们就可能在一端向另一端*read()*或者*write()*，同时另一端向这一端*read()*或者*write()*时阻塞，这也就意味着最终我们会变得无响应。
+
+根据下面几条实现一个异步代理的简单例子：
+* 在我们的方案中，我们在构造函数中能拿到两个连接。但不是所有的情况都这样，比如对于一个web代理来说，客户端只告诉我们服务端的地址。
+* 因为比较简单，所以不是线程安全的。参考如下的代码：
+
+```
+class proxy  : public boost::enable_shared_from_this<proxy> {
+    proxy(ip::tcp::endpoint ep_client, ip::tcp::endpoint ep_server) : ... {}
+public:
+    static ptr start(ip::tcp::endpoint ep_client,
+ip::tcp::endpoint ep_svr) {
+        ptr new_(new proxy(ep_client, ep_svr));
+        // … 连接到两个端
+        return new_;
+    }
+    void stop() {
+        // ... 关闭两个连接
+    }
+    bool started() { return started_ == 2; }
+private:
+    void on_connect(const error_code & err) {
+        if ( !err)      {
+            if ( ++started_ == 2) on_start();
+        } else stop();
+    }
+    void on_start() {
+        do_read(client_, buff_client_);
+        do_read(server_, buff_server_);
+    }
+... 
+private:
+    ip::tcp::socket client_, server_;
+    enum { max_msg = 1024 };
+    char buff_client_[max_msg], buff_server_[max_msg]; 
+    int started_; 
+};
+```
+
+这是个非常简单的代理。当我们两个端都连接时，它开始从两个端读取（*on_start()*方法）：
+
+```
+class proxy  : public boost::enable_shared_from_this<proxy> {
+    ...
+    void on_read(ip::tcp::socket & sock, const error_code& err, size_t bytes) {
+        char * buff = &sock == &client_ ? buff_client_ : buff_server_;
+        do_write(&sock == &client_ ? server_ : client_, buff, bytes);
+    }
+    void on_write(ip::tcp::socket & sock, const error_code &err, size_t bytes){
+        if ( &sock == &client_) do_read(server_, buff_server_);
+        else do_read(client_, buff_client_);
+    }
+    void do_read(ip::tcp::socket & sock, char* buff) {
+        async_read(sock, buffer(buff, max_msg), MEM_FN3(read_complete,ref(sock),_1,_2), MEM_FN3(on_read,ref(sock),_1,_2));
+    }
+    void do_write(ip::tcp::socket & sock, char * buff, size_t size) {
+        sock.async_write_some(buffer(buff,size), MEM_FN3(on_write,ref(sock),_1,_2));
+    }
+    size_t read_complete(ip::tcp::socket & sock, const error_code & err, size_t bytes) {
+        if ( sock.available() > 0) return
+        sock.available();
+        return bytes > 0 ? 0 : 1;
+    }
+}; 
+```
+
+对每一个成功的读取操作（*on_read*），它都会发送消息到另外一个部分。只要消息一发送成功（*on_write*），我们就从来源那部分再次读取。
+
+使用下面的代码片段让这个流程运转起来：
+
+```
+int main(int argc, char* argv[]) {
+    ip::tcp::endpoint ep_c(ip::address::from_string("127.0.0.1"),8001);
+    ip::tcp::endpoint ep_s(ip::address::from_string("127.0.0.1"),8002);
+    proxy::start(ep_c, ep_s);
+    service.run();
+} 
+```
+
+你会注意到我在读和写中重用了buffer。这个重用是ok的，因为从客户端读取到的消息在新消息被读取之前就已经写入到服务端，反之亦然。这也意味着这种特别的实现方式会碰到响应性的问题。当我们正在处理到B部分的写入时，我们不会从A读取（我们会在写入到B部分完成时重新从A部分读取）。你可以通过下面的方式重写实现来克服这个问题：
+
+* 使用多个读取buffer
+* 对每个成功的*read*操作，除了异步写回到另外一个部分，还需要做额外的一个*read*（读取到一个新的buffer）
+* 对每个成功的*write*操作，销毁（或者重用）这个buffer
+
+我会把这个当作练习留给你们。
+
+### 小结
+
+在选择同步或者异步时需要考虑很多事情。最先需要考虑的就是避免混淆它们。
+
+在这一章中，我们已经看到：
+
+* 实现，测试，调试各个类型的应用是多么简单
+* 线程是如何影响你的应用的
+* 应用的行为是怎么影响它的实现的（拉取或者推送类型）
+* 选择异步时怎样去嵌入自己的异步操作
+
+接下来，我们会了解一些Boost.Asio不那么为人知晓的特性，中间就有我最喜欢的Boost.Asio特性－协程，它可以让你轻松地取异步之精华，去异步之糟粕。
+
+
