@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "iOS 工程自动化 - OCLint"
-description: "最近一直在做 iOS 工程自动化方向的事情，所以把自己研究和实践的内容进行记录并分享>，希望能给大家一些帮助。"
+description: ""
 
 category: iOS 工程自动化
 tags: [iOS,工程自动化,OCLint]
