@@ -1,3 +1,17 @@
+---
+layout: post
+title: "iOS 工程自动化 - 思路整理"
+description: ""
+
+category: iOS 工程自动化
+tags: [iOS,工程自动化]
+modified: 2017-08-20
+
+imagefeature: mmoaay_bg.jpg
+comments: true
+share: true
+---
+
 4 月份参加 2017@Swift 大会的时候有幸听到了 @zesming 大佬关于美团组件化的 Topic，有一张图印象特别深刻。
 
 ![来自 @zesming 大佬](http://upload-images.jianshu.io/upload_images/4481019-ce6260719848d6ef.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
